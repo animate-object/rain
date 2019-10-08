@@ -8,6 +8,7 @@ import Html.Events exposing (onClick)
 import Maybe exposing (..)
 import Point exposing (..)
 import Random exposing (..)
+import Set exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Triangle exposing (..)
@@ -203,7 +204,20 @@ generateAttributes graph id =
 
 debugGraph : TriGraph -> List (Html msg)
 debugGraph g =
-    Graph.edges g |> List.map edgeToString |> List.map (\s -> Html.div [] [ Html.text s ])
+    Graph.nodes g |> List.map (\n -> Html.div [] [ Html.text (nodeToString n g) ])
+
+
+nodeToString : ( Int, Maybe NodeData ) -> TriGraph -> String
+nodeToString node graph =
+    "Color: "
+        ++ Maybe.withDefault "None" (Tuple.second node |> Maybe.map (\data -> Color.toString data.color))
+        ++ "Edges: "
+        ++ (Graph.outgoing (Tuple.first node) graph |> Set.toList |> List.map (\num -> "-> " ++ String.fromInt num) |> String.join ", ")
+
+
+edgesToString : List ( Int, Int ) -> String
+edgesToString edges =
+    List.map edgeToString edges |> String.join " || "
 
 
 edgeToString : ( Int, Int ) -> String
