@@ -1,3 +1,12 @@
+###
+A simple variation on flood-it games, built in elm for the browser
+
+This is a WIP
+
+![Progress](./progress.png)
+
+Check out the TODO list below.
+
 # Challenges
 
 ## Solved
