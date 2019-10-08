@@ -3,7 +3,7 @@ A simple variation on flood-it games, built in elm for the browser
 
 This is a WIP
 
-![Progress](./progress.png)
+![Progress](./progress2.png)
 
 Check out the TODO list below.
 
