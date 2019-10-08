@@ -1,11 +1,13 @@
 module Main exposing (main, view)
 
 import Browser
+import Color exposing (..)
 import Graph exposing (..)
 import Html exposing (Html, button, div, text)
 import Html.Events exposing (onClick)
 import Maybe exposing (..)
 import Point exposing (..)
+import Random exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Triangle exposing (..)
@@ -13,12 +15,16 @@ import Tuple exposing (..)
 
 
 initRows =
-    32
+    10
+
+
+initSeed =
+    23
 
 
 main =
     Browser.sandbox
-        { init = Model (Viewport 800 800) initRows (adjacencyGraph initRows)
+        { init = Model (Viewport 800 800) initRows (Tuple.first (adjacencyGraph initRows nodeData (initialSeed initSeed)))
         , update = \msg model -> model
         , view = view
         }
@@ -43,25 +49,29 @@ type alias Model =
 
 type alias NodeData =
     { id : Int
+    , color : Color
     }
+
+
+type alias NodeDataGenerator =
+    Seed -> Int -> ( NodeData, Seed )
+
+
+nodeData : Seed -> Int -> ( NodeData, Seed )
+nodeData seed id =
+    let
+        generated =
+            Random.step Color.random seed
+    in
+    Tuple.pair (NodeData id (Tuple.first generated)) (Tuple.second generated)
 
 
 type EdgeData
     = EdgeData
 
 
-type alias GraphAcc graph =
-    { graph : graph
-    , step : Int
-    }
-
-
 type alias TriGraph =
     Graph Int NodeData EdgeData
-
-
-type alias TriGraphAcc =
-    GraphAcc TriGraph
 
 
 isEven : Int -> Bool
@@ -74,14 +84,14 @@ isOdd int =
     not (isEven int)
 
 
-adjacencyGraph : Int -> TriGraph
-adjacencyGraph rows =
+adjacencyGraph : Int -> NodeDataGenerator -> Seed -> ( TriGraph, Seed )
+adjacencyGraph rows generateNodeData seed =
     List.range 0 (rows - 1)
-        |> List.foldl addRow Graph.empty
+        |> List.foldl (addRow generateNodeData) (Tuple.pair Graph.empty seed)
 
 
-addRow : Int -> TriGraph -> TriGraph
-addRow r g =
+addRow : NodeDataGenerator -> Int -> ( TriGraph, Seed ) -> ( TriGraph, Seed )
+addRow generateNodeData r acc =
     let
         shouldConnect =
             if isEven r then
@@ -97,27 +107,33 @@ addRow r g =
             ((r + 1) ^ 2) - 1
     in
     List.range first last
-        |> List.foldl (addNode shouldConnect first r) g
+        |> List.foldl (addNode shouldConnect first r generateNodeData) acc
 
 
-addNode : (Int -> Bool) -> Int -> Int -> Int -> TriGraph -> TriGraph
-addNode shouldConnect first r n g =
+addNode : (Int -> Bool) -> Int -> Int -> NodeDataGenerator -> Int -> ( TriGraph, Seed ) -> ( TriGraph, Seed )
+addNode shouldConnect first r nodeDataGenerator n acc =
     let
+        generated =
+            nodeDataGenerator (Tuple.second acc) n
+
         updated =
-            Graph.insert n g
+            Graph.insertData n (Tuple.first generated) (Tuple.first acc)
 
         withEdge =
             if n == first then
-                g
+                updated
 
             else
-                Graph.insertEdge n (n - 1) g
-    in
-    if shouldConnect n then
-        Graph.insertEdge n (n - (2 * r)) withEdge
+                Graph.insertEdge n (n - 1) updated
 
-    else
-        withEdge
+        final =
+            if shouldConnect n then
+                Graph.insertEdge n (n - (2 * r)) withEdge
+
+            else
+                withEdge
+    in
+    Tuple.pair final (Tuple.second generated)
 
 
 
@@ -154,12 +170,11 @@ view model =
             [ width (String.fromFloat viewWidth)
             , height (String.fromFloat viewHeight)
             ]
-            (drawTriangles
+            (triangles
                 model.rows
                 viewWidth
-                [ stroke "blue"
-                , fill "none"
-                ]
+                |> List.concat
+                |> List.indexedMap (generateTri (generateAttributes model.graph))
             )
         , div
             []
@@ -167,6 +182,23 @@ view model =
                 model.graph
             )
         ]
+
+
+generateTri : (Int -> List (Html.Attribute msg)) -> Int -> Triangle -> Svg msg
+generateTri generateAttr id tri =
+    Triangle.draw tri (generateAttr id) []
+
+
+generateAttributes : TriGraph -> Int -> List (Html.Attribute msg)
+generateAttributes graph id =
+    let
+        maybeNode =
+            Graph.getData id graph
+
+        color =
+            Maybe.withDefault White (Maybe.map (\n -> n.color) maybeNode)
+    in
+    [ fill (Color.toString color) ]
 
 
 debugGraph : TriGraph -> List (Html msg)
@@ -183,14 +215,14 @@ edgeToString edge =
 -- 'Grid' of triangles
 
 
-drawTriangles : Int -> Float -> List (Html.Attribute msg) -> List (Svg msg)
-drawTriangles rows boxWidth attrs =
+drawTriangles : Int -> Float -> List (List (Html.Attribute msg) -> List (Svg msg) -> Html msg)
+drawTriangles rows boxWidth =
     let
         allTriangles =
             triangles rows boxWidth |> List.concat
     in
     List.map
-        (\t -> Triangle.draw t attrs [])
+        (\t -> Triangle.draw t)
         allTriangles
 
 

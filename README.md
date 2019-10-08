@@ -4,6 +4,7 @@
 
 - Draw tesselated triangle grid as function of rows and grid dimensions
 - Generate adjacency graph for grid as function of number of rows
+- Color nodes n different colors
 
 ## In Progress
 
@@ -12,6 +13,5 @@
 ## On Deck
 
 - View responds to window resize
-- Color nodes n different colors
 - Expanding perimeter graph traversal ('flood')
 - Embedding Elm in a web app
