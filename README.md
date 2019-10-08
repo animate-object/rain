@@ -8,10 +8,10 @@
 
 ## In Progress
 
-- Join view and model -- e.g.: when node 7 is hovered, highlight it
+- Expanding perimeter graph traversal ('flood')
 
 ## On Deck
 
 - View responds to window resize
-- Expanding perimeter graph traversal ('flood')
 - Embedding Elm in a web app
+- Join view and model -- e.g.: when node 7 is hovered, highlight it

@@ -4,6 +4,7 @@ import Browser
 import Color exposing (..)
 import Graph exposing (..)
 import Html exposing (Html, button, div, text)
+import Html.Attributes as Attr exposing (..)
 import Html.Events exposing (onClick)
 import Maybe exposing (..)
 import Point exposing (..)
@@ -16,11 +17,11 @@ import Tuple exposing (..)
 
 
 initRows =
-    10
+    4
 
 
 initSeed =
-    23
+    22
 
 
 main =
@@ -56,6 +57,11 @@ type alias NodeData =
 
 type alias NodeDataGenerator =
     Seed -> Int -> ( NodeData, Seed )
+
+
+allEdges : comparable -> Graph comparable data edgeData -> Set comparable
+allEdges id graph =
+    Set.union (Graph.outgoing id graph) (Graph.incoming id graph)
 
 
 nodeData : Seed -> Int -> ( NodeData, Seed )
@@ -166,10 +172,19 @@ view model =
         viewWidth =
             trimmed.width
     in
-    div []
+    div
+        [ Attr.style "position" "absolute"
+        , Attr.style "top" "0"
+        , Attr.style "left" "0"
+        , Attr.style "display" "flex"
+        , Attr.style "width" "100vw"
+        , Attr.style "justify-content" "space-evenly"
+        , Attr.style "height" "100vh"
+        , Attr.style "font-family" "Arial, sans-serif"
+        ]
         [ svg
-            [ width (String.fromFloat viewWidth)
-            , height (String.fromFloat viewHeight)
+            [ Svg.Attributes.width (String.fromFloat viewWidth)
+            , Svg.Attributes.height (String.fromFloat viewHeight)
             ]
             (triangles
                 model.rows
@@ -178,7 +193,11 @@ view model =
                 |> List.indexedMap (generateTri (generateAttributes model.graph))
             )
         , div
-            []
+            [ Attr.style "overflow" "auto"
+            , Attr.style "height" "100%"
+            , Attr.style "font-size" "1.5rem"
+            , Attr.style "padding" "0 2rem"
+            ]
             (debugGraph
                 model.graph
             )
@@ -204,15 +223,17 @@ generateAttributes graph id =
 
 debugGraph : TriGraph -> List (Html msg)
 debugGraph g =
-    Graph.nodes g |> List.map (\n -> Html.div [] [ Html.text (nodeToString n g) ])
+    Graph.nodes g |> List.reverse |> List.map (\n -> Html.div [] [ Html.text (nodeToString n g) ])
 
 
 nodeToString : ( Int, Maybe NodeData ) -> TriGraph -> String
 nodeToString node graph =
-    "Color: "
+    "Id: "
+        ++ String.fromInt (Tuple.first node)
+        ++ " || Color: "
         ++ Maybe.withDefault "None" (Tuple.second node |> Maybe.map (\data -> Color.toString data.color))
-        ++ "Edges: "
-        ++ (Graph.outgoing (Tuple.first node) graph |> Set.toList |> List.map (\num -> "-> " ++ String.fromInt num) |> String.join ", ")
+        ++ " || Edges: "
+        ++ (allEdges (Tuple.first node) graph |> Set.toList |> List.map (\num -> "-> " ++ String.fromInt num) |> String.join ", ")
 
 
 edgesToString : List ( Int, Int ) -> String
@@ -227,17 +248,6 @@ edgeToString edge =
 
 
 -- 'Grid' of triangles
-
-
-drawTriangles : Int -> Float -> List (List (Html.Attribute msg) -> List (Svg msg) -> Html msg)
-drawTriangles rows boxWidth =
-    let
-        allTriangles =
-            triangles rows boxWidth |> List.concat
-    in
-    List.map
-        (\t -> Triangle.draw t)
-        allTriangles
 
 
 triangles : Int -> Float -> List (List Triangle)
