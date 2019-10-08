@@ -17,7 +17,7 @@ import Tuple exposing (..)
 
 
 initRows =
-    4
+    32
 
 
 initSeed =
