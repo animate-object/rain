@@ -20,6 +20,36 @@ all =
 
 toString : Color -> String
 toString color =
+    light color
+
+
+light : Color -> String
+light color =
+    case color of
+        Red ->
+            "#eb4d4d"
+
+        Orange ->
+            "#ffb854"
+
+        Yellow ->
+            "#e7fa55"
+
+        Green ->
+            "#39e36c"
+
+        Blue ->
+            "#6ba1ff"
+
+        Purple ->
+            "#e268f2"
+
+        White ->
+            "white"
+
+
+basic : Color -> String
+basic color =
     case color of
         Red ->
             "red"

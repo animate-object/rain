@@ -14,10 +14,25 @@ import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Triangle exposing (Triangle, draw, sizedTriangleGrid)
 import Tuple exposing (..)
+import Viewport exposing (Viewport, trimViewport)
+
+
+main =
+    Browser.sandbox
+        { init = init initRows (initialSeed initSeed) (Viewport 800 800)
+        , update = update
+        , view = view
+        }
+
+
+
+--------------------------------------------------------------------------------
+-- Init
+--------------------------------------------------------------------------------
 
 
 initRows =
-    20
+    10
 
 
 initSeed =
@@ -36,18 +51,10 @@ init rows seed viewport =
     Model viewport rows graph color
 
 
-main =
-    Browser.sandbox
-        { init = init initRows (initialSeed initSeed) (Viewport 800 800)
-        , update = update
-        , view = view
-        }
 
-
-type alias Viewport =
-    { height : Float
-    , width : Float
-    }
+--------------------------------------------------------------------------------
+-- Model
+--------------------------------------------------------------------------------
 
 
 type alias Model =
@@ -56,6 +63,12 @@ type alias Model =
     , graph : FloodGraph
     , color : Color
     }
+
+
+
+--------------------------------------------------------------------------------
+-- Update
+--------------------------------------------------------------------------------
 
 
 type Msg
@@ -75,16 +88,9 @@ update msg model =
 
 
 
+--------------------------------------------------------------------------------
 -- View
-
-
-trimViewport : Viewport -> Viewport
-trimViewport v =
-    let
-        minSide =
-            Basics.min v.height v.width
-    in
-    Viewport minSide minSide
+--------------------------------------------------------------------------------
 
 
 view : Model -> Html Msg
