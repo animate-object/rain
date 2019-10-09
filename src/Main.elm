@@ -2,7 +2,7 @@ module Main exposing (main, view)
 
 import Browser
 import Color exposing (..)
-import FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, nodeColor, randomNode, recolor, triangleGraph)
+import FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
 import Html exposing (Html, button, div, text)
 import Html.Attributes as Attr exposing (..)
 import Html.Events exposing (onClick)
@@ -47,8 +47,11 @@ init rows seed viewport =
 
         color =
             nodeColor graph 0
+
+        gameData =
+            GameData 0 False
     in
-    Model viewport rows graph color
+    Model viewport rows graph color gameData
 
 
 
@@ -57,11 +60,18 @@ init rows seed viewport =
 --------------------------------------------------------------------------------
 
 
+type alias GameData =
+    { turnsTaken : Int
+    , flooded : Bool
+    }
+
+
 type alias Model =
     { viewport : Viewport
     , rows : Int
     , graph : FloodGraph
     , color : Color
+    , gameData : GameData
     }
 
 
@@ -79,11 +89,24 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         ColorSelected newColor ->
-            { model
-                | graph =
+            let
+                recoloredGraph =
                     recolor model.color newColor 0 (RecolorAccumulator model.graph Set.empty)
                         |> (\result -> result.graph)
+
+                gameData =
+                    model.gameData
+
+                updatedGameData =
+                    { gameData
+                        | turnsTaken = gameData.turnsTaken + 1
+                        , flooded = isFlooded recoloredGraph
+                    }
+            in
+            { model
+                | graph = recoloredGraph
                 , color = newColor
+                , gameData = updatedGameData
             }
 
 
@@ -125,7 +148,7 @@ view model =
                 )
             , div
                 [ Attr.style "display" "flex"
-                , Attr.style "width" (String.fromFloat trimmed.width ++ "px")
+                , Attr.style "width" "100%"
                 , Attr.style "justify-content" "space-evenly"
                 , Attr.style "padding" "0.25rem"
                 , Attr.style "flex-grow" "1"
@@ -134,7 +157,32 @@ view model =
                 (colorSelectors
                     (\c -> Html.Events.onClick (ColorSelected c))
                 )
+            , gameInfo model.gameData
             ]
+        ]
+
+
+gameInfo : GameData -> Html msg
+gameInfo gameData =
+    div
+        [ Attr.style "display" "flex"
+        , Attr.style "width" "100%"
+        , Attr.style "justify-content" "space-evenly"
+        , Attr.style "padding" "0.25rem"
+        , Attr.style "font-size" "1.5rem"
+        , Attr.style "flex-grow" "1"
+        , Attr.style "align-items" "center"
+        ]
+        [ Html.text
+            ("Turns Taken "
+                ++ String.fromInt gameData.turnsTaken
+                ++ (if gameData.flooded then
+                        " You've Won!"
+
+                    else
+                        ""
+                   )
+            )
         ]
 
 

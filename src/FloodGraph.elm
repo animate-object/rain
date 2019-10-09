@@ -1,4 +1,4 @@
-module FloodGraph exposing (..)
+module FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
 
 import Color exposing (..)
 import Graph exposing (..)
@@ -163,6 +163,28 @@ nodeColor graph id =
     Graph.getData id graph
         |> Maybe.map (\n -> n.color)
         |> Maybe.withDefault White
+
+
+colorWithDefault : Maybe FloodNode -> Color
+colorWithDefault node =
+    Maybe.withDefault White (Maybe.map (\n -> n.color) node)
+
+
+isFlooded : FloodGraph -> Bool
+isFlooded graph =
+    let
+        allNodes =
+            Graph.nodes graph |> List.map Tuple.second
+
+        maybeFirstNodeData =
+            List.head allNodes
+    in
+    case maybeFirstNodeData of
+        Just (Just firstNodeData) ->
+            List.all (\maybeData -> Maybe.withDefault False (Maybe.map (\n -> n.color == firstNodeData.color) maybeData)) allNodes
+
+        _ ->
+            False
 
 
 
