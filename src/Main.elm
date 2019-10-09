@@ -92,12 +92,6 @@ view model =
     let
         trimmed =
             trimViewport model.viewport
-
-        viewHeight =
-            trimmed.height
-
-        viewWidth =
-            trimmed.width
     in
     div
         [ Attr.style "position" "absolute"
@@ -115,47 +109,64 @@ view model =
             , Attr.style "flex-direction" "column"
             ]
             [ svg
-                [ Svg.Attributes.width (String.fromFloat viewWidth)
-                , Svg.Attributes.height (String.fromFloat viewHeight)
+                [ Svg.Attributes.width (String.fromFloat trimmed.width)
+                , Svg.Attributes.height (String.fromFloat trimmed.height)
                 ]
                 (triangleGameGrid
-                    model
+                    model.rows
+                    model.graph
+                    trimmed
                 )
             , div
                 [ Attr.style "display" "flex"
-                , Attr.style "width" (String.fromFloat viewWidth ++ "px")
+                , Attr.style "width" (String.fromFloat trimmed.width ++ "px")
                 , Attr.style "justify-content" "space-evenly"
                 , Attr.style "padding" "0.25rem"
                 , Attr.style "flex-grow" "1"
                 , Attr.style "align-items" "center"
                 ]
-                (Color.all
-                    |> List.map
-                        (\c ->
-                            button
-                                [ Attr.style "width" "5rem"
-                                , Attr.style "height" "3rem"
-                                , Attr.style "border" "none"
-                                , Attr.style "border-radius" "2px"
-                                , Attr.style "box-shadow" "0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px (0, 0, 0, 0.24)"
-                                , Attr.style "padding" "1rem"
-                                , Attr.style "background-color" (Color.toString c)
-                                , onClick (ColorSelected c)
-                                ]
-                                []
-                        )
+                (colorSelectors
+                    (\c -> Html.Events.onClick (ColorSelected c))
                 )
             ]
         ]
 
 
-triangleGameGrid : Model -> List (Svg msg)
-triangleGameGrid model =
+colorSelectors : (Color -> Html.Attribute msg) -> List (Html msg)
+colorSelectors onClick =
+    Color.all
+        |> List.map
+            (\c ->
+                button
+                    [ Attr.style "width" "5rem"
+                    , Attr.style "height" "3rem"
+                    , Attr.style "border" "none"
+                    , Attr.style "border-radius" "2px"
+                    , Attr.style "box-shadow" "0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px (0, 0, 0, 0.24)"
+                    , Attr.style "padding" "1rem"
+                    , Attr.style "background-color" (Color.toString c)
+                    , onClick c
+                    ]
+                    []
+            )
+
+
+
+{------------------------------------------------------------------------------
+-- This section contains a couple of functions that marry the graph in state
+-- to the generated game grid (thereby generated the game board view).
+-- Wondering if these fit better in some other module, but for now
+-- it seems reasonable to do this where it's needed, in the view layer
+--}
+
+
+triangleGameGrid : Int -> FloodGraph -> Viewport -> List (Svg msg)
+triangleGameGrid rowCount graph viewport =
     sizedTriangleGrid
-        model.rows
-        model.viewport.width
+        rowCount
+        viewport.width
         |> List.concat
-        |> List.indexedMap (coloredTriangle (nodeColorFromId model.graph))
+        |> List.indexedMap (coloredTriangle (nodeColorFromId graph))
 
 
 coloredTriangle : (Int -> List (Svg.Attribute msg)) -> Int -> Triangle -> Svg msg
