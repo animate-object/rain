@@ -4,7 +4,8 @@ A simple variation on flood-it games, built in elm for the browser
 
 This is a WIP
 
-![Progress](./progress4.png)
+![Progress](./progress4a.png)
+![Progress](./progress4b.png)
 
 Check out the TODO list below.
 

@@ -36,7 +36,11 @@ initRows =
 
 
 initSeed =
-    22122433
+    22122121433
+
+
+startNode =
+    0
 
 
 init : Int -> Seed -> Viewport -> Model
@@ -46,7 +50,7 @@ init rows seed viewport =
             triangleGraph initRows randomNode seed |> Tuple.first
 
         color =
-            nodeColor graph 0
+            nodeColor graph startNode
 
         gameData =
             GameData 0 False
@@ -91,7 +95,7 @@ update msg model =
         ColorSelected newColor ->
             let
                 recoloredGraph =
-                    recolor model.color newColor 0 (RecolorAccumulator model.graph Set.empty)
+                    recolor model.color newColor startNode (RecolorAccumulator model.graph Set.empty)
                         |> (\result -> result.graph)
 
                 gameData =
