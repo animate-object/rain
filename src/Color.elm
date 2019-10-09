@@ -13,6 +13,11 @@ type Color
     | White
 
 
+all : List Color
+all =
+    [ Red, Orange, Yellow, Green, Blue, Purple ]
+
+
 toString : Color -> String
 toString color =
     case color of

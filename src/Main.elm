@@ -17,17 +17,29 @@ import Tuple exposing (..)
 
 
 initRows =
-    32
+    20
 
 
 initSeed =
-    22
+    2212243
+
+
+init : Int -> Seed -> Viewport -> Model
+init rows seed viewport =
+    let
+        graph =
+            adjacencyGraph initRows nodeData seed |> Tuple.first
+
+        color =
+            Maybe.withDefault White (Maybe.map (\data -> data.color) (Graph.getData 0 graph))
+    in
+    Model viewport rows graph color
 
 
 main =
     Browser.sandbox
-        { init = Model (Viewport 800 800) initRows (Tuple.first (adjacencyGraph initRows nodeData (initialSeed initSeed)))
-        , update = \msg model -> model
+        { init = init initRows (initialSeed initSeed) (Viewport 800 800)
+        , update = update
         , view = view
         }
 
@@ -42,7 +54,24 @@ type alias Model =
     { viewport : Viewport
     , rows : Int
     , graph : TriGraph
+    , color : Color
     }
+
+
+type Msg
+    = ColorSelected Color
+
+
+update : Msg -> Model -> Model
+update msg model =
+    case msg of
+        ColorSelected newColor ->
+            { model
+                | graph =
+                    recolor model.color newColor 0 (RecolorAccumulator model.graph Set.empty)
+                        |> (\result -> result.graph)
+                , color = newColor
+            }
 
 
 
@@ -144,6 +173,49 @@ addNode shouldConnect first r nodeDataGenerator n acc =
 
 
 
+-- Graph Traversal
+
+
+type alias RecolorAccumulator =
+    { graph : TriGraph
+    , visited : Set Int
+    }
+
+
+recolor : Color -> Color -> Int -> RecolorAccumulator -> RecolorAccumulator
+recolor current new nodeId acc =
+    let
+        maybeNode =
+            Graph.getData nodeId acc.graph
+
+        visited =
+            Set.insert nodeId acc.visited
+
+        unvisitedNeighbors =
+            Set.diff (allEdges nodeId acc.graph) visited
+    in
+    Maybe.withDefault
+        (RecolorAccumulator
+            acc.graph
+            visited
+        )
+        (Maybe.map
+            (\node ->
+                if node.color /= current then
+                    RecolorAccumulator acc.graph visited
+
+                else
+                    let
+                        recoloredNode =
+                            NodeData nodeId new
+                    in
+                    Set.foldl (recolor current new) (RecolorAccumulator (Graph.insertData nodeId recoloredNode acc.graph) visited) unvisitedNeighbors
+            )
+            maybeNode
+        )
+
+
+
 -- trim viewport to a square with sides equal to the minimum length of the viewport
 
 
@@ -160,7 +232,7 @@ trimViewport v =
 -- View
 
 
-view : Model -> Html msg
+view : Model -> Html Msg
 view model =
     let
         trimmed =
@@ -182,16 +254,46 @@ view model =
         , Attr.style "height" "100vh"
         , Attr.style "font-family" "Arial, sans-serif"
         ]
-        [ svg
-            [ Svg.Attributes.width (String.fromFloat viewWidth)
-            , Svg.Attributes.height (String.fromFloat viewHeight)
+        [ div
+            [ Attr.style "height" "100%"
+            , Attr.style "display" "flex"
+            , Attr.style "flex-direction" "column"
             ]
-            (triangles
-                model.rows
-                viewWidth
-                |> List.concat
-                |> List.indexedMap (generateTri (generateAttributes model.graph))
-            )
+            [ svg
+                [ Svg.Attributes.width (String.fromFloat viewWidth)
+                , Svg.Attributes.height (String.fromFloat viewHeight)
+                ]
+                (triangles
+                    model.rows
+                    viewWidth
+                    |> List.concat
+                    |> List.indexedMap (generateTri (generateAttributes model.graph))
+                )
+            , div
+                [ Attr.style "display" "flex"
+                , Attr.style "width" (String.fromFloat viewWidth ++ "px")
+                , Attr.style "justify-content" "space-evenly"
+                , Attr.style "padding" "0.25rem"
+                , Attr.style "flex-grow" "1"
+                , Attr.style "align-items" "center"
+                ]
+                (Color.all
+                    |> List.map
+                        (\c ->
+                            button
+                                [ Attr.style "width" "5rem"
+                                , Attr.style "height" "3rem"
+                                , Attr.style "border" "none"
+                                , Attr.style "border-radius" "2px"
+                                , Attr.style "box-shadow" "0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px (0, 0, 0, 0.24)"
+                                , Attr.style "padding" "1rem"
+                                , Attr.style "background-color" (Color.toString c)
+                                , onClick (ColorSelected c)
+                                ]
+                                []
+                        )
+                )
+            ]
         , div
             [ Attr.style "overflow" "auto"
             , Attr.style "height" "100%"
