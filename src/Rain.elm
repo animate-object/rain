@@ -222,17 +222,17 @@ mobile model =
         , Attr.style "right" "0"
         , Attr.style "bottom" "0"
         , Attr.style "top" "0"
-        , Attr.style "overflow" "hidden"
+        , Attr.style "overflow-x" "hidden"
         , Attr.style "font-family" "Arial, sans-serif"
         ]
         [ div
             [ Attr.style "display" "grid"
-            , Attr.style "grid-template-rows" "1fr auto 1.5fr 1fr"
+            , Attr.style "grid-template-rows" " 1em auto 1.5fr 1fr"
             , Attr.style "justify-items" "center"
             , Attr.style "grid-gap" "2em"
             , Attr.style "height" "100vh"
             ]
-            [ Html.h1 [ Attr.style "font-size" "5rem", Attr.style "text-align" "center" ] [ Html.text "Rain" ]
+            [ div [] []
             , svg
                 [ Svg.Attributes.width (String.fromFloat trimmed.width)
                 , Svg.Attributes.height (String.fromFloat trimmed.height)
@@ -343,7 +343,7 @@ gamePanel model =
             , Attr.style "border-radius" "2px"
             , Attr.style "height" "50%"
             ]
-            [ Html.text "Show Options" ]
+            [ Html.text "Options" ]
         ]
 
 

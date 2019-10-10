@@ -20,7 +20,32 @@ all =
 
 toString : Color -> String
 toString color =
-    light color
+    rain color
+
+
+rain : Color -> String
+rain color =
+    case color of
+        Red ->
+            "#c9d0f5"
+
+        Orange ->
+            "#35c7fc"
+
+        Yellow ->
+            "#424cff"
+
+        Green ->
+            "#23166e"
+
+        Blue ->
+            "#96faf2"
+
+        Purple ->
+            "#5f6968"
+
+        White ->
+            "white"
 
 
 light : Color -> String
