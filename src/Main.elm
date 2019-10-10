@@ -1,8 +1,9 @@
 module Main exposing (main, view)
 
 import Browser
+import Browser.Events
 import Color exposing (..)
-import FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
+import FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, empty, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
 import Html exposing (Html, button, div, text)
 import Html.Attributes as Attr exposing (..)
 import Html.Events exposing (onClick)
@@ -12,16 +13,19 @@ import Random exposing (..)
 import Set exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
+import Task
+import Time exposing (..)
 import Triangle exposing (Triangle, draw, sizedTriangleGrid)
 import Tuple exposing (..)
 import Viewport exposing (Viewport, trimViewport)
 
 
 main =
-    Browser.sandbox
-        { init = init initRows (initialSeed initSeed) (Viewport 800 800)
+    Browser.element
+        { init = \flags -> init flags initRows (initialSeed 0) (Viewport 800 800)
         , update = update
         , view = view
+        , subscriptions = subscriptions
         }
 
 
@@ -32,30 +36,16 @@ main =
 
 
 initRows =
-    10
-
-
-initSeed =
-    22122121433
+    5
 
 
 startNode =
     0
 
 
-init : Int -> Seed -> Viewport -> Model
-init rows seed viewport =
-    let
-        graph =
-            triangleGraph initRows randomNode seed |> Tuple.first
-
-        color =
-            nodeColor graph startNode
-
-        gameData =
-            GameData 0 False
-    in
-    Model viewport rows graph color gameData
+init : () -> Int -> Seed -> Viewport -> ( Model, Cmd Msg )
+init flags rows seed viewport =
+    ( Model viewport rows FloodGraph.empty Color.White (GameData 0 False), requestNewGame )
 
 
 
@@ -87,9 +77,29 @@ type alias Model =
 
 type Msg
     = ColorSelected Color
+    | NewGameStarted Seed
+    | NewGameRequested
+    | WindowResized Int Int
 
 
-update : Msg -> Model -> Model
+requestNewGame : Cmd Msg
+requestNewGame =
+    Task.perform (\posix -> Time.posixToMillis posix |> initialSeed |> NewGameStarted) Time.now
+
+
+newGame : Int -> Seed -> ( FloodGraph, GameData )
+newGame rows seed =
+    let
+        graph =
+            triangleGraph rows randomNode seed |> Tuple.first
+
+        gameData =
+            GameData 0 False
+    in
+    ( graph, gameData )
+
+
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ColorSelected newColor ->
@@ -106,12 +116,42 @@ update msg model =
                         | turnsTaken = gameData.turnsTaken + 1
                         , flooded = isFlooded recoloredGraph
                     }
+
+                updated =
+                    { model
+                        | graph = recoloredGraph
+                        , color = newColor
+                        , gameData = updatedGameData
+                    }
             in
-            { model
-                | graph = recoloredGraph
-                , color = newColor
-                , gameData = updatedGameData
-            }
+            ( updated, Cmd.none )
+
+        NewGameRequested ->
+            ( model, requestNewGame )
+
+        NewGameStarted seed ->
+            let
+                game =
+                    newGame model.rows seed
+
+                graph =
+                    Tuple.first game
+            in
+            ( Model model.viewport model.rows graph (nodeColor graph startNode) (Tuple.second game), Cmd.none )
+
+        WindowResized width height ->
+            ( { model | viewport = Viewport (toFloat height) (toFloat width) }, Cmd.none )
+
+
+
+--------------------------------------------------------------------------------
+-- Subscriptions
+--------------------------------------------------------------------------------
+
+
+subscriptions : Model -> Sub Msg
+subscriptions model =
+    Browser.Events.onResize WindowResized
 
 
 
@@ -163,6 +203,11 @@ view model =
                 )
             , gameInfo model.gameData
             ]
+        , modal
+            False
+            model.viewport
+            []
+            [ div [] [ Html.text "test" ] ]
         ]
 
 
@@ -200,13 +245,53 @@ colorSelectors onClick =
                     , Attr.style "height" "3rem"
                     , Attr.style "border" "none"
                     , Attr.style "border-radius" "2px"
-                    , Attr.style "box-shadow" "0 1px 3px rgba(0, 0, 0, 0.12), 0 1px 2px (0, 0, 0, 0.24)"
                     , Attr.style "padding" "1rem"
                     , Attr.style "background-color" (Color.toString c)
                     , onClick c
                     ]
                     []
             )
+
+
+desktopModalAttrs : List (Html.Attribute Msg)
+desktopModalAttrs =
+    [ Attr.style "position" "absolute"
+    , Attr.style "z-index" "100"
+    , Attr.style "top" "10%"
+    , Attr.style "height" "80%"
+    , Attr.style "width" "50%"
+    , Attr.style "border-radius" "4px"
+    , Attr.style "border" "1px solid #e5e5e5"
+    , Attr.style "background-color" "#efefef"
+    ]
+
+
+mobileModalAttrs : List (Html.Attribute Msg)
+mobileModalAttrs =
+    [ Attr.style "position" "absolute"
+    , Attr.style "top" "5%"
+    , Attr.style "z-index" "100"
+    , Attr.style "height" "90%"
+    , Attr.style "width" "90%"
+    , Attr.style "background-color" "#e5e5e5"
+    ]
+
+
+modal : Bool -> Viewport -> List (Html.Attribute Msg) -> List (Html Msg) -> Html Msg
+modal isVisible viewport attrs children =
+    let
+        modalAttrs =
+            if viewport.width < 800 then
+                mobileModalAttrs
+
+            else
+                desktopModalAttrs
+    in
+    if isVisible == True then
+        div (List.append modalAttrs attrs) children
+
+    else
+        div [] []
 
 
 

@@ -19,22 +19,21 @@ Check out the TODO list below.
 - Expanding perimeter graph traversal ('flood')
 - Win test and state
 - Turn counter
+- On load, get time to drive random seed
 
 ## In Progress
-- Sleep
+
+- Eat dinner
+
 ## On Deck
 
-- On load, get time to drive random seed
 - New game button
 - Game options (row counts, n colors, color schemes)
 - View responds to window resize
 - Embedding Elm in a web app
 
-
 ## Stretch
+
 - When you hover a node, all adjacent nodes of the same color get highlighted
 - Square Grids, Hexagonal Grids
-- Train a solver (every project needs AI) 
-
-
-
+- Train a solver (every project needs AI)

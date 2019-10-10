@@ -1,4 +1,4 @@
-module FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
+module FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, empty, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
 
 import Color exposing (..)
 import Graph exposing (..)
@@ -35,6 +35,11 @@ type alias FloodGraph =
 -------------------------------------------------------------------------------
 -- Generate
 -------------------------------------------------------------------------------
+
+
+empty : FloodGraph
+empty =
+    Graph.empty
 
 
 randomNode : Seed -> Int -> ( FloodNode, Seed )
