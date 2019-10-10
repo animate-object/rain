@@ -46,7 +46,7 @@ startNode =
 
 init : () -> Int -> Seed -> Rect -> ( Model, Cmd Msg )
 init flags rows seed viewport =
-    ( Model viewport rows FloodGraph.empty Color.White (GameData 0 False), Cmd.batch [ requestNewGame, getInitialViewport ] )
+    ( Model viewport rows FloodGraph.empty Color.White (GameData 0 False) False rows, Cmd.batch [ requestNewGame, getViewport ] )
 
 
 
@@ -67,6 +67,8 @@ type alias Model =
     , graph : FloodGraph
     , color : Color
     , gameData : GameData
+    , showOptions : Bool
+    , nextGameRows : Int
     }
 
 
@@ -81,16 +83,9 @@ type Msg
     | NewGameStarted Seed
     | NewGameRequested
     | WindowResized Int Int
-
-
-getInitialViewport : Cmd Msg
-getInitialViewport =
-    Task.perform (\v -> WindowResized (floor v.viewport.width) (floor v.viewport.height)) Browser.Dom.getViewport
-
-
-requestNewGame : Cmd Msg
-requestNewGame =
-    Task.perform (\posix -> Time.posixToMillis posix |> initialSeed |> NewGameStarted) Time.now
+    | ViewportUpdated Rect
+    | ShowOptions Bool
+    | SetNextGameRows Int
 
 
 newGame : Int -> Seed -> ( FloodGraph, GameData )
@@ -109,31 +104,35 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         ColorSelected newColor ->
-            let
-                recoloredGraph =
-                    recolor model.color newColor startNode (RecolorAccumulator model.graph Set.empty)
-                        |> (\result -> result.graph)
+            if newColor == model.color then
+                ( model, Cmd.none )
 
-                gameData =
-                    model.gameData
+            else
+                let
+                    recoloredGraph =
+                        recolor model.color newColor startNode (RecolorAccumulator model.graph Set.empty)
+                            |> (\result -> result.graph)
 
-                updatedGameData =
-                    { gameData
-                        | turnsTaken = gameData.turnsTaken + 1
-                        , flooded = isFlooded recoloredGraph
-                    }
+                    gameData =
+                        model.gameData
 
-                updated =
-                    { model
-                        | graph = recoloredGraph
-                        , color = newColor
-                        , gameData = updatedGameData
-                    }
-            in
-            ( updated, Cmd.none )
+                    updatedGameData =
+                        { gameData
+                            | turnsTaken = gameData.turnsTaken + 1
+                            , flooded = isFlooded recoloredGraph
+                        }
+
+                    updated =
+                        { model
+                            | graph = recoloredGraph
+                            , color = newColor
+                            , gameData = updatedGameData
+                        }
+                in
+                ( updated, Cmd.none )
 
         NewGameRequested ->
-            ( model, requestNewGame )
+            ( { model | rows = model.nextGameRows }, requestNewGame )
 
         NewGameStarted seed ->
             let
@@ -143,10 +142,43 @@ update msg model =
                 graph =
                     Tuple.first game
             in
-            ( Model model.viewport model.rows graph (nodeColor graph startNode) (Tuple.second game), Cmd.none )
+            ( { model
+                | graph = graph
+                , color = nodeColor graph startNode
+                , gameData = Tuple.second game
+                , showOptions = False
+              }
+            , Cmd.none
+            )
 
-        WindowResized width height ->
-            ( { model | viewport = Rect (toFloat width) (toFloat height) }, Cmd.none )
+        ViewportUpdated newViewport ->
+            ( { model | viewport = newViewport }, Cmd.none )
+
+        WindowResized _ _ ->
+            ( model, getViewport )
+
+        ShowOptions show ->
+            -- reset options state on 'enter/exit'
+            ( { model | showOptions = show, nextGameRows = model.rows }, Cmd.none )
+
+        SetNextGameRows rows ->
+            ( { model | nextGameRows = rows }, Cmd.none )
+
+
+
+--------------------------------------------------------------------------------
+-- Commanda
+--------------------------------------------------------------------------------
+
+
+getViewport : Cmd Msg
+getViewport =
+    Task.perform (\v -> ViewportUpdated (Rect v.scene.width v.scene.height)) Browser.Dom.getViewport
+
+
+requestNewGame : Cmd Msg
+requestNewGame =
+    Task.perform (\posix -> Time.posixToMillis posix |> initialSeed |> NewGameStarted) Time.now
 
 
 
@@ -168,7 +200,7 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
-    if model.viewport.width > 750 then
+    if model.viewport.width > 982 then
         desktop model
 
     else
@@ -177,7 +209,53 @@ view model =
 
 mobile : Model -> Html Msg
 mobile model =
-    div [] []
+    let
+        constrained =
+            Rect.constrain model.viewport (Rect (model.viewport.width * 0.9) (model.viewport.height * 0.65))
+
+        trimmed =
+            Rect.trim constrained
+    in
+    div
+        [ Attr.style "position" "absolute"
+        , Attr.style "left" "0"
+        , Attr.style "right" "0"
+        , Attr.style "bottom" "0"
+        , Attr.style "top" "0"
+        , Attr.style "overflow" "hidden"
+        , Attr.style "font-family" "Arial, sans-serif"
+        ]
+        [ div
+            [ Attr.style "display" "grid"
+            , Attr.style "grid-template-rows" "1fr auto 1.5fr 1fr"
+            , Attr.style "justify-items" "center"
+            , Attr.style "grid-gap" "2em"
+            , Attr.style "height" "100vh"
+            ]
+            [ Html.h1 [ Attr.style "font-size" "5rem", Attr.style "text-align" "center" ] [ Html.text "Rain" ]
+            , svg
+                [ Svg.Attributes.width (String.fromFloat trimmed.width)
+                , Svg.Attributes.height (String.fromFloat trimmed.height)
+                ]
+                (triangleGameGrid
+                    model.rows
+                    model.graph
+                    trimmed
+                )
+            , div
+                [ Attr.style "display" "grid"
+                , Attr.style "grid-template-columns" "1fr 1fr 1fr"
+                , Attr.style "grid-template-rows" "1fr 1fr"
+                , Attr.style "grid-gap" "1em"
+                , Attr.style "width" "90%"
+                ]
+                (colorSelectors
+                    (\c -> Html.Events.onClick (ColorSelected c))
+                )
+            , gamePanel model
+            ]
+        , gameOptionsModal model
+        ]
 
 
 desktop : Model -> Html Msg
@@ -185,9 +263,6 @@ desktop model =
     let
         constrained =
             Rect model.viewport.width (0.75 * model.viewport.height)
-
-        gutter =
-            Rect model.viewport.width (0.2 * model.viewport.height)
 
         trimmed =
             Rect.trim constrained
@@ -220,46 +295,55 @@ desktop model =
                     trimmed
                 )
             , div
-                [ Attr.style "display" "flex"
+                [ Attr.style "padding-top" "2rem"
+                , Attr.style "display" "grid"
                 , Attr.style "width" "100%"
-                , Attr.style "justify-content" "space-between"
+                , Attr.style "grid-template-columns" "1fr 1fr 1fr 1fr 1fr 1fr"
+                , Attr.style "grid-gap" "2rem"
                 , Attr.style "flex-grow" "1"
-                , Attr.style "align-items" "center"
                 ]
                 (colorSelectors
                     (\c -> Html.Events.onClick (ColorSelected c))
                 )
-            , gameInfo model.gameData
+            , gamePanel model
             ]
-        , modal
-            False
-            model.viewport
-            []
-            [ div [] [ Html.text "test" ] ]
+        , gameOptionsModal model
         ]
 
 
-gameInfo : GameData -> Html msg
-gameInfo gameData =
+gamePanel : Model -> Html Msg
+gamePanel model =
+    let
+        turnsTaken =
+            model.gameData.turnsTaken
+
+        flooded =
+            model.gameData.flooded
+    in
     div
-        [ Attr.style "display" "flex"
+        [ Attr.style "display" "grid"
         , Attr.style "width" "100%"
-        , Attr.style "justify-content" "space-evenly"
-        , Attr.style "padding" "0.25rem"
-        , Attr.style "font-size" "1.5rem"
+        , Attr.style "font-size" "3rem"
         , Attr.style "flex-grow" "1"
-        , Attr.style "align-items" "center"
+        , Attr.style "place-items" "center"
+        , Attr.style "grid-template-columns" "1fr 1fr"
+        , Attr.style "grid-gap" "1.5rem"
         ]
         [ Html.text
-            ("Turns Taken "
-                ++ String.fromInt gameData.turnsTaken
-                ++ (if gameData.flooded then
-                        " You've Won!"
+            (if flooded then
+                "You won in " ++ String.fromInt turnsTaken ++ "turns!"
 
-                    else
-                        ""
-                   )
+             else
+                "Turn " ++ String.fromInt (turnsTaken + 1)
             )
+        , button
+            [ onClick (ShowOptions (not model.showOptions))
+            , Attr.style "font-size" "3rem"
+            , Attr.style "border" "none"
+            , Attr.style "border-radius" "2px"
+            , Attr.style "height" "50%"
+            ]
+            [ Html.text "Show Options" ]
         ]
 
 
@@ -269,8 +353,11 @@ colorSelectors onClick =
         |> List.map
             (\c ->
                 button
-                    [ Attr.style "width" "5rem"
-                    , Attr.style "height" "3rem"
+                    [ Attr.style "height"
+                        "70%"
+                    , Attr.style
+                        "flex-grow"
+                        "1"
                     , Attr.style "border" "none"
                     , Attr.style "border-radius" "2px"
                     , Attr.style "padding" "1rem"
@@ -285,11 +372,10 @@ desktopModalAttrs : List (Html.Attribute Msg)
 desktopModalAttrs =
     [ Attr.style "position" "absolute"
     , Attr.style "z-index" "100"
-    , Attr.style "top" "10%"
-    , Attr.style "height" "80%"
+    , Attr.style "top" "1%"
+    , Attr.style "height" "98%"
     , Attr.style "width" "50%"
-    , Attr.style "border-radius" "4px"
-    , Attr.style "border" "1px solid #e5e5e5"
+    , Attr.style "border-radius" "6px"
     , Attr.style "background-color" "#efefef"
     ]
 
@@ -297,11 +383,13 @@ desktopModalAttrs =
 mobileModalAttrs : List (Html.Attribute Msg)
 mobileModalAttrs =
     [ Attr.style "position" "absolute"
-    , Attr.style "top" "5%"
+    , Attr.style "top" "1%"
+    , Attr.style "left" "1%"
     , Attr.style "z-index" "100"
-    , Attr.style "height" "90%"
-    , Attr.style "width" "90%"
-    , Attr.style "background-color" "#e5e5e5"
+    , Attr.style "height" "98%"
+    , Attr.style "width" "98%"
+    , Attr.style "border-radius" "6px"
+    , Attr.style "background-color" "#efefef"
     ]
 
 
@@ -309,7 +397,7 @@ modal : Bool -> Rect -> List (Html.Attribute Msg) -> List (Html Msg) -> Html Msg
 modal isVisible viewport attrs children =
     let
         modalAttrs =
-            if viewport.width < 800 then
+            if viewport.width < 982 then
                 mobileModalAttrs
 
             else
@@ -320,6 +408,71 @@ modal isVisible viewport attrs children =
 
     else
         div [] []
+
+
+gameOptionsModal : Model -> Html Msg
+gameOptionsModal model =
+    modal model.showOptions
+        model.viewport
+        []
+        [ gameOptions model ]
+
+
+gameOptions : Model -> Html Msg
+gameOptions model =
+    div
+        [ Attr.style "height" "100%"
+        , Attr.style "display" "grid"
+        , Attr.style "grid-gap" "1em"
+        , Attr.style "grid-template-rows" "1fr auto 1fr 1fr 1fr"
+        , Attr.style "justify-items" "center"
+        , Attr.style "padding" "1rem"
+        ]
+        [ Html.h1 [] [ Html.text "Rain" ]
+        , Html.p [ Attr.style "font-size" "3rem" ]
+            [ Html.text
+                ("Rain is a triangular take on a 'color the grid game'."
+                    ++ " Change the color of the top node to expand your selection."
+                    ++ " Try to cover the whole grid!"
+                )
+            ]
+        , div
+            [ Attr.style "font-size" "3rem"
+            , Attr.style "border" "none"
+            , Attr.style "border-radius" "2px"
+            , Attr.style "padding-top" "15%"
+            , Attr.style "height" "80%"
+            , Attr.style "width" "100%"
+            ]
+            [ Html.span [ Attr.style "font-size" "3rem" ]
+                [ Html.text "Number of rows" ]
+            , Html.input
+                [ Attr.type_ "number"
+                , Attr.style "font-size" "3rem"
+                , Html.Events.onInput (\s -> SetNextGameRows (Maybe.withDefault model.nextGameRows (String.toInt s)))
+                , Attr.value (String.fromInt model.nextGameRows)
+                ]
+                []
+            ]
+        , button
+            [ onClick NewGameRequested
+            , Attr.style "font-size" "3rem"
+            , Attr.style "border" "none"
+            , Attr.style "border-radius" "2px"
+            , Attr.style "height" "80%"
+            , Attr.style "width" "100%"
+            ]
+            [ Html.text "New Game" ]
+        , button
+            [ onClick (ShowOptions False)
+            , Attr.style "font-size" "3rem"
+            , Attr.style "border" "none"
+            , Attr.style "border-radius" "2px"
+            , Attr.style "height" "80%"
+            , Attr.style "width" "100%"
+            ]
+            [ Html.text "Exit" ]
+        ]
 
 
 
