@@ -1,6 +1,7 @@
 module Main exposing (main, view)
 
 import Browser
+import Browser.Dom
 import Browser.Events
 import Color exposing (..)
 import FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, empty, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
@@ -10,6 +11,7 @@ import Html.Events exposing (onClick)
 import Maybe exposing (..)
 import Point exposing (..)
 import Random exposing (..)
+import Rect exposing (Rect, constrain, trim)
 import Set exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
@@ -17,12 +19,11 @@ import Task
 import Time exposing (..)
 import Triangle exposing (Triangle, draw, sizedTriangleGrid)
 import Tuple exposing (..)
-import Viewport exposing (Viewport, trimViewport)
 
 
 main =
     Browser.element
-        { init = \flags -> init flags initRows (initialSeed 0) (Viewport 800 800)
+        { init = \flags -> init flags initRows (initialSeed 0) (Rect 800 800)
         , update = update
         , view = view
         , subscriptions = subscriptions
@@ -36,16 +37,16 @@ main =
 
 
 initRows =
-    5
+    10
 
 
 startNode =
     0
 
 
-init : () -> Int -> Seed -> Viewport -> ( Model, Cmd Msg )
+init : () -> Int -> Seed -> Rect -> ( Model, Cmd Msg )
 init flags rows seed viewport =
-    ( Model viewport rows FloodGraph.empty Color.White (GameData 0 False), requestNewGame )
+    ( Model viewport rows FloodGraph.empty Color.White (GameData 0 False), Cmd.batch [ requestNewGame, getInitialViewport ] )
 
 
 
@@ -61,7 +62,7 @@ type alias GameData =
 
 
 type alias Model =
-    { viewport : Viewport
+    { viewport : Rect
     , rows : Int
     , graph : FloodGraph
     , color : Color
@@ -80,6 +81,11 @@ type Msg
     | NewGameStarted Seed
     | NewGameRequested
     | WindowResized Int Int
+
+
+getInitialViewport : Cmd Msg
+getInitialViewport =
+    Task.perform (\v -> WindowResized (floor v.viewport.width) (floor v.viewport.height)) Browser.Dom.getViewport
 
 
 requestNewGame : Cmd Msg
@@ -140,7 +146,7 @@ update msg model =
             ( Model model.viewport model.rows graph (nodeColor graph startNode) (Tuple.second game), Cmd.none )
 
         WindowResized width height ->
-            ( { model | viewport = Viewport (toFloat height) (toFloat width) }, Cmd.none )
+            ( { model | viewport = Rect (toFloat width) (toFloat height) }, Cmd.none )
 
 
 
@@ -162,19 +168,42 @@ subscriptions model =
 
 view : Model -> Html Msg
 view model =
+    if model.viewport.width > 750 then
+        desktop model
+
+    else
+        mobile model
+
+
+mobile : Model -> Html Msg
+mobile model =
+    div [] []
+
+
+desktop : Model -> Html Msg
+desktop model =
     let
+        constrained =
+            Rect model.viewport.width (0.75 * model.viewport.height)
+
+        gutter =
+            Rect model.viewport.width (0.2 * model.viewport.height)
+
         trimmed =
-            trimViewport model.viewport
+            Rect.trim constrained
     in
     div
         [ Attr.style "position" "absolute"
-        , Attr.style "top" "0"
         , Attr.style "left" "0"
+        , Attr.style "right" "0"
+        , Attr.style "bottom" "0"
+        , Attr.style "top" "0"
         , Attr.style "display" "flex"
-        , Attr.style "width" "100vw"
-        , Attr.style "justify-content" "space-evenly"
-        , Attr.style "height" "100vh"
+        , Attr.style "justify-content" "center"
+        , Attr.style "overflow" "none"
+        , Attr.style "overflow" "none"
         , Attr.style "font-family" "Arial, sans-serif"
+        , Attr.style "padding-top" "2%"
         ]
         [ div
             [ Attr.style "height" "100%"
@@ -193,8 +222,7 @@ view model =
             , div
                 [ Attr.style "display" "flex"
                 , Attr.style "width" "100%"
-                , Attr.style "justify-content" "space-evenly"
-                , Attr.style "padding" "0.25rem"
+                , Attr.style "justify-content" "space-between"
                 , Attr.style "flex-grow" "1"
                 , Attr.style "align-items" "center"
                 ]
@@ -277,7 +305,7 @@ mobileModalAttrs =
     ]
 
 
-modal : Bool -> Viewport -> List (Html.Attribute Msg) -> List (Html Msg) -> Html Msg
+modal : Bool -> Rect -> List (Html.Attribute Msg) -> List (Html Msg) -> Html Msg
 modal isVisible viewport attrs children =
     let
         modalAttrs =
@@ -303,7 +331,7 @@ modal isVisible viewport attrs children =
 --}
 
 
-triangleGameGrid : Int -> FloodGraph -> Viewport -> List (Svg msg)
+triangleGameGrid : Int -> FloodGraph -> Rect -> List (Svg msg)
 triangleGameGrid rowCount graph viewport =
     sizedTriangleGrid
         rowCount
