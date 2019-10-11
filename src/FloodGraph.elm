@@ -167,12 +167,12 @@ nodeColor : FloodGraph -> Int -> Color
 nodeColor graph id =
     Graph.getData id graph
         |> Maybe.map (\n -> n.color)
-        |> Maybe.withDefault White
+        |> Maybe.withDefault None
 
 
 colorWithDefault : Maybe FloodNode -> Color
 colorWithDefault node =
-    Maybe.withDefault White (Maybe.map (\n -> n.color) node)
+    Maybe.withDefault None (Maybe.map (\n -> n.color) node)
 
 
 isFlooded : FloodGraph -> Bool

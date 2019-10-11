@@ -5,16 +5,16 @@ import Browser.Dom
 import Browser.Events
 import Color exposing (..)
 import FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, empty, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
-import Html exposing (Html, button, div, text)
-import Html.Attributes as Attr exposing (..)
-import Html.Events exposing (onClick)
+import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (onClick, onInput)
 import Maybe exposing (..)
 import Point exposing (..)
 import Random exposing (..)
 import Rect exposing (Rect, constrain, trim)
 import Set exposing (..)
-import Svg exposing (..)
-import Svg.Attributes exposing (..)
+import Svg exposing (svg)
+import Svg.Attributes as SvgAttr
 import Task
 import Time exposing (..)
 import Triangle exposing (Triangle, draw, sizedTriangleGrid)
@@ -24,7 +24,7 @@ import Tuple exposing (..)
 main =
     Browser.element
         { init = \flags -> init flags initRows (initialSeed 0) (Rect 800 800)
-        , update = update
+        , update = updateAndLog
         , view = view
         , subscriptions = subscriptions
         }
@@ -46,7 +46,15 @@ startNode =
 
 init : () -> Int -> Seed -> Rect -> ( Model, Cmd Msg )
 init flags rows seed viewport =
-    ( Model viewport rows FloodGraph.empty Color.White (GameData 0 False) False rows, Cmd.batch [ requestNewGame, getViewport ] )
+    ( Model viewport
+        rows
+        FloodGraph.empty
+        Color.None
+        (GameData 0 False)
+        False
+        (Just rows)
+    , Cmd.batch [ requestNewGame, getViewport ]
+    )
 
 
 
@@ -68,8 +76,23 @@ type alias Model =
     , color : Color
     , gameData : GameData
     , showOptions : Bool
-    , nextGameRows : Int
+    , nextGameRows : Maybe Int
     }
+
+
+type alias ModelWithoutGraph =
+    { viewport : Rect
+    , rows : Int
+    , color : Color
+    , gameData : GameData
+    , showOptions : Bool
+    , nextGameRows : Maybe Int
+    }
+
+
+withoutGraph : Model -> ModelWithoutGraph
+withoutGraph model =
+    ModelWithoutGraph model.viewport model.rows model.color model.gameData model.showOptions model.nextGameRows
 
 
 
@@ -85,7 +108,7 @@ type Msg
     | WindowResized Int Int
     | ViewportUpdated Rect
     | ShowOptions Bool
-    | SetNextGameRows Int
+    | SetNextGameRows (Maybe Int)
 
 
 newGame : Int -> Seed -> ( FloodGraph, GameData )
@@ -98,6 +121,28 @@ newGame rows seed =
             GameData 0 False
     in
     ( graph, gameData )
+
+
+msgToString : Msg -> String
+msgToString msg =
+    Debug.toString msg
+
+
+modelToString : Model -> String
+modelToString model =
+    Debug.toString (withoutGraph model)
+
+
+updateAndLog : Msg -> Model -> ( Model, Cmd Msg )
+updateAndLog msg model =
+    let
+        new =
+            update msg model
+
+        log =
+            Debug.log (msgToString msg ++ modelToString (Tuple.first new)) "update"
+    in
+    new
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -132,7 +177,7 @@ update msg model =
                 ( updated, Cmd.none )
 
         NewGameRequested ->
-            ( { model | rows = model.nextGameRows }, requestNewGame )
+            ( { model | rows = Maybe.withDefault model.rows model.nextGameRows }, requestNewGame )
 
         NewGameStarted seed ->
             let
@@ -159,10 +204,16 @@ update msg model =
 
         ShowOptions show ->
             -- reset options state on 'enter/exit'
-            ( { model | showOptions = show, nextGameRows = model.rows }, Cmd.none )
+            ( { model | showOptions = show, nextGameRows = Just model.rows }, Cmd.none )
 
-        SetNextGameRows rows ->
-            ( { model | nextGameRows = rows }, Cmd.none )
+        SetNextGameRows val ->
+            ( { model
+                | nextGameRows =
+                    Maybe.map (\v -> Basics.min 100 (Basics.max 0 v))
+                        val
+              }
+            , Cmd.none
+            )
 
 
 
@@ -217,25 +268,25 @@ mobile model =
             Rect.trim constrained
     in
     div
-        [ Attr.style "position" "absolute"
-        , Attr.style "left" "0"
-        , Attr.style "right" "0"
-        , Attr.style "bottom" "0"
-        , Attr.style "top" "0"
-        , Attr.style "overflow-x" "hidden"
-        , Attr.style "font-family" "Arial, sans-serif"
+        [ style "position" "absolute"
+        , style "left" "0"
+        , style "right" "0"
+        , style "bottom" "0"
+        , style "top" "0"
+        , style "overflow-x" "hidden"
+        , style "font-family" "Arial, sans-serif"
         ]
         [ div
-            [ Attr.style "display" "grid"
-            , Attr.style "grid-template-rows" " 1em auto 1.5fr 1fr"
-            , Attr.style "justify-items" "center"
-            , Attr.style "grid-gap" "2em"
-            , Attr.style "height" "100vh"
+            [ style "display" "grid"
+            , style "grid-template-rows" " 1em auto 1fr 1fr"
+            , style "justify-items" "center"
+            , style "grid-gap" "2em"
+            , style "height" "100vh"
             ]
             [ div [] []
             , svg
-                [ Svg.Attributes.width (String.fromFloat trimmed.width)
-                , Svg.Attributes.height (String.fromFloat trimmed.height)
+                [ SvgAttr.width (String.fromFloat trimmed.width)
+                , SvgAttr.height (String.fromFloat trimmed.height)
                 ]
                 (triangleGameGrid
                     model.rows
@@ -243,11 +294,11 @@ mobile model =
                     trimmed
                 )
             , div
-                [ Attr.style "display" "grid"
-                , Attr.style "grid-template-columns" "1fr 1fr 1fr"
-                , Attr.style "grid-template-rows" "1fr 1fr"
-                , Attr.style "grid-gap" "1em"
-                , Attr.style "width" "90%"
+                [ style "display" "grid"
+                , style "grid-template-columns" "1fr 1fr 1fr"
+                , style "grid-template-rows" "1fr 1fr"
+                , style "grid-gap" "1em"
+                , style "width" "90%"
                 ]
                 (colorSelectors
                     (\c -> Html.Events.onClick (ColorSelected c))
@@ -268,26 +319,27 @@ desktop model =
             Rect.trim constrained
     in
     div
-        [ Attr.style "position" "absolute"
-        , Attr.style "left" "0"
-        , Attr.style "right" "0"
-        , Attr.style "bottom" "0"
-        , Attr.style "top" "0"
-        , Attr.style "display" "flex"
-        , Attr.style "justify-content" "center"
-        , Attr.style "overflow" "none"
-        , Attr.style "overflow" "none"
-        , Attr.style "font-family" "Arial, sans-serif"
-        , Attr.style "padding-top" "2%"
+        [ style "position" "absolute"
+        , style "left" "0"
+        , style "right" "0"
+        , style "bottom" "0"
+        , style "top" "0"
+        , style "display" "flex"
+        , style "justify-content" "center"
+        , style "overflow" "none"
+        , style "overflow" "none"
+        , style "font-family" "Arial, sans-serif"
+        , style "padding-top" "2%"
         ]
         [ div
-            [ Attr.style "height" "100%"
-            , Attr.style "display" "flex"
-            , Attr.style "flex-direction" "column"
+            [ style "height" "100%"
+            , style "display" "flex"
+            , style "flex-direction" "column"
+            , style "align-items" "center"
             ]
             [ svg
-                [ Svg.Attributes.width (String.fromFloat trimmed.width)
-                , Svg.Attributes.height (String.fromFloat trimmed.height)
+                [ SvgAttr.width (String.fromFloat trimmed.width)
+                , SvgAttr.height (String.fromFloat trimmed.height)
                 ]
                 (triangleGameGrid
                     model.rows
@@ -295,12 +347,12 @@ desktop model =
                     trimmed
                 )
             , div
-                [ Attr.style "padding-top" "2rem"
-                , Attr.style "display" "grid"
-                , Attr.style "width" "100%"
-                , Attr.style "grid-template-columns" "1fr 1fr 1fr 1fr 1fr 1fr"
-                , Attr.style "grid-gap" "2rem"
-                , Attr.style "flex-grow" "1"
+                [ style "padding-top" "2rem"
+                , style "display" "grid"
+                , style "width" "100%"
+                , style "grid-template-columns" "1fr 1fr 1fr 1fr 1fr 1fr"
+                , style "grid-gap" "2rem"
+                , style "flex-grow" "1"
                 ]
                 (colorSelectors
                     (\c -> Html.Events.onClick (ColorSelected c))
@@ -321,27 +373,27 @@ gamePanel model =
             model.gameData.flooded
     in
     div
-        [ Attr.style "display" "grid"
-        , Attr.style "width" "100%"
-        , Attr.style "font-size" "3rem"
-        , Attr.style "flex-grow" "1"
-        , Attr.style "place-items" "center"
-        , Attr.style "grid-template-columns" "1fr 1fr"
-        , Attr.style "grid-gap" "1.5rem"
+        [ style "display" "grid"
+        , style "width" "100%"
+        , style "font-size" "3rem"
+        , style "flex-grow" "1"
+        , style "place-items" "center"
+        , style "grid-template-columns" "1fr 1fr"
+        , style "grid-gap" "1.5rem"
         ]
         [ Html.text
             (if flooded then
-                "You won in " ++ String.fromInt turnsTaken ++ "turns!"
+                "You won in " ++ String.fromInt turnsTaken ++ " turns!"
 
              else
                 "Turn " ++ String.fromInt (turnsTaken + 1)
             )
         , button
             [ onClick (ShowOptions (not model.showOptions))
-            , Attr.style "font-size" "3rem"
-            , Attr.style "border" "none"
-            , Attr.style "border-radius" "2px"
-            , Attr.style "height" "50%"
+            , style "font-size" "3rem"
+            , style "border" "none"
+            , style "border-radius" "2px"
+            , style "height" "50%"
             ]
             [ Html.text "Options" ]
         ]
@@ -353,15 +405,15 @@ colorSelectors onClick =
         |> List.map
             (\c ->
                 button
-                    [ Attr.style "height"
+                    [ style "height"
                         "70%"
-                    , Attr.style
+                    , style
                         "flex-grow"
                         "1"
-                    , Attr.style "border" "none"
-                    , Attr.style "border-radius" "2px"
-                    , Attr.style "padding" "1rem"
-                    , Attr.style "background-color" (Color.toString c)
+                    , style "border" "none"
+                    , style "border-radius" "2px"
+                    , style "padding" "1rem"
+                    , style "background-color" (Color.toString c)
                     , onClick c
                     ]
                     []
@@ -370,26 +422,26 @@ colorSelectors onClick =
 
 desktopModalAttrs : List (Html.Attribute Msg)
 desktopModalAttrs =
-    [ Attr.style "position" "absolute"
-    , Attr.style "z-index" "100"
-    , Attr.style "top" "1%"
-    , Attr.style "height" "98%"
-    , Attr.style "width" "50%"
-    , Attr.style "border-radius" "6px"
-    , Attr.style "background-color" "#efefef"
+    [ style "position" "absolute"
+    , style "z-index" "100"
+    , style "top" "1%"
+    , style "height" "98%"
+    , style "width" "80%"
+    , style "border-radius" "6px"
+    , style "background-color" "#efefef"
     ]
 
 
 mobileModalAttrs : List (Html.Attribute Msg)
 mobileModalAttrs =
-    [ Attr.style "position" "absolute"
-    , Attr.style "top" "1%"
-    , Attr.style "left" "1%"
-    , Attr.style "z-index" "100"
-    , Attr.style "height" "98%"
-    , Attr.style "width" "98%"
-    , Attr.style "border-radius" "6px"
-    , Attr.style "background-color" "#efefef"
+    [ style "position" "absolute"
+    , style "top" "1%"
+    , style "left" "1%"
+    , style "z-index" "100"
+    , style "height" "98%"
+    , style "width" "98%"
+    , style "border-radius" "6px"
+    , style "background-color" "#efefef"
     ]
 
 
@@ -420,16 +472,20 @@ gameOptionsModal model =
 
 gameOptions : Model -> Html Msg
 gameOptions model =
+    let
+        log2 =
+            Debug.log (Debug.toString model.nextGameRows) "-- gameOptions"
+    in
     div
-        [ Attr.style "height" "100%"
-        , Attr.style "display" "grid"
-        , Attr.style "grid-gap" "1em"
-        , Attr.style "grid-template-rows" "1fr auto 1fr 1fr 1fr"
-        , Attr.style "justify-items" "center"
-        , Attr.style "padding" "1rem"
+        [ style "height" "100%"
+        , style "display" "grid"
+        , style "grid-gap" "1em"
+        , style "grid-template-rows" "1fr auto 1fr 1fr 1fr"
+        , style "justify-items" "center"
+        , style "padding" "1rem"
         ]
         [ Html.h1 [] [ Html.text "Rain" ]
-        , Html.p [ Attr.style "font-size" "3rem" ]
+        , Html.p [ style "font-size" "3rem" ]
             [ Html.text
                 ("Rain is a triangular take on a 'color the grid game'."
                     ++ " Change the color of the top node to expand your selection."
@@ -437,39 +493,41 @@ gameOptions model =
                 )
             ]
         , div
-            [ Attr.style "font-size" "3rem"
-            , Attr.style "border" "none"
-            , Attr.style "border-radius" "2px"
-            , Attr.style "padding-top" "15%"
-            , Attr.style "height" "80%"
-            , Attr.style "width" "100%"
+            [ style "font-size" "3rem"
+            , style "border" "none"
+            , style "border-radius" "2px"
+            , style "padding-top" "15%"
+            , style "height" "80%"
+            , style "width" "100%"
             ]
-            [ Html.span [ Attr.style "font-size" "3rem" ]
-                [ Html.text "Number of rows" ]
-            , Html.input
-                [ Attr.type_ "number"
-                , Attr.style "font-size" "3rem"
-                , Html.Events.onInput (\s -> SetNextGameRows (Maybe.withDefault model.nextGameRows (String.toInt s)))
-                , Attr.value (String.fromInt model.nextGameRows)
+            [ Html.span [ style "font-size" "3rem" ]
+                [ Html.text ("Number of rows " ++ (Maybe.map String.fromInt model.nextGameRows |> withDefault "")) ]
+            , div []
+                [ input
+                    [ type_ "number"
+                    , style "font-size" "3rem"
+                    , value (Maybe.map String.fromInt model.nextGameRows |> withDefault "")
+                    , onInput (\s -> SetNextGameRows (String.toInt s))
+                    ]
+                    []
                 ]
-                []
             ]
         , button
             [ onClick NewGameRequested
-            , Attr.style "font-size" "3rem"
-            , Attr.style "border" "none"
-            , Attr.style "border-radius" "2px"
-            , Attr.style "height" "80%"
-            , Attr.style "width" "100%"
+            , style "font-size" "3rem"
+            , style "border" "none"
+            , style "border-radius" "2px"
+            , style "height" "80%"
+            , style "width" "100%"
             ]
             [ Html.text "New Game" ]
         , button
             [ onClick (ShowOptions False)
-            , Attr.style "font-size" "3rem"
-            , Attr.style "border" "none"
-            , Attr.style "border-radius" "2px"
-            , Attr.style "height" "80%"
-            , Attr.style "width" "100%"
+            , style "font-size" "3rem"
+            , style "border" "none"
+            , style "border-radius" "2px"
+            , style "height" "80%"
+            , style "width" "100%"
             ]
             [ Html.text "Exit" ]
         ]
@@ -484,7 +542,7 @@ gameOptions model =
 --}
 
 
-triangleGameGrid : Int -> FloodGraph -> Rect -> List (Svg msg)
+triangleGameGrid : Int -> FloodGraph -> Rect -> List (Svg.Svg msg)
 triangleGameGrid rowCount graph viewport =
     sizedTriangleGrid
         rowCount
@@ -493,7 +551,7 @@ triangleGameGrid rowCount graph viewport =
         |> List.indexedMap (coloredTriangle (nodeColorFromId graph))
 
 
-coloredTriangle : (Int -> List (Svg.Attribute msg)) -> Int -> Triangle -> Svg msg
+coloredTriangle : (Int -> List (Svg.Attribute msg)) -> Int -> Triangle -> Svg.Svg msg
 coloredTriangle getColorAttr nodeId tri =
     Triangle.draw tri (getColorAttr nodeId) []
 
@@ -501,4 +559,4 @@ coloredTriangle getColorAttr nodeId tri =
 nodeColorFromId : FloodGraph -> Int -> List (Svg.Attribute msg)
 nodeColorFromId graph id =
     nodeColor graph id
-        |> (\color -> [ fill (Color.toString color) ])
+        |> (\color -> [ SvgAttr.fill (Color.toString color) ])

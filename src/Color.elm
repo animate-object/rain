@@ -4,18 +4,18 @@ import Random exposing (..)
 
 
 type Color
-    = Red
-    | Orange
-    | Yellow
-    | Green
-    | Blue
-    | Purple
-    | White
+    = Color1
+    | Color2
+    | Color3
+    | Color4
+    | Color5
+    | Color6
+    | None
 
 
 all : List Color
 all =
-    [ Red, Orange, Yellow, Green, Blue, Purple ]
+    [ Color1, Color2, Color3, Color4, Color5, Color6 ]
 
 
 toString : Color -> String
@@ -26,78 +26,78 @@ toString color =
 rain : Color -> String
 rain color =
     case color of
-        Red ->
+        Color1 ->
             "#c9d0f5"
 
-        Orange ->
+        Color2 ->
             "#35c7fc"
 
-        Yellow ->
+        Color3 ->
             "#424cff"
 
-        Green ->
+        Color4 ->
             "#23166e"
 
-        Blue ->
+        Color5 ->
             "#96faf2"
 
-        Purple ->
+        Color6 ->
             "#5f6968"
 
-        White ->
-            "white"
+        None ->
+            "White"
 
 
 light : Color -> String
 light color =
     case color of
-        Red ->
+        Color1 ->
             "#eb4d4d"
 
-        Orange ->
+        Color2 ->
             "#ffb854"
 
-        Yellow ->
+        Color3 ->
             "#e7fa55"
 
-        Green ->
+        Color4 ->
             "#39e36c"
 
-        Blue ->
+        Color5 ->
             "#6ba1ff"
 
-        Purple ->
+        Color6 ->
             "#e268f2"
 
-        White ->
-            "white"
+        None ->
+            "White"
 
 
 basic : Color -> String
 basic color =
     case color of
-        Red ->
-            "red"
+        Color1 ->
+            "Red"
 
-        Orange ->
-            "orange"
+        Color2 ->
+            "Orange"
 
-        Yellow ->
-            "yellow"
+        Color3 ->
+            "Yellow"
 
-        Green ->
-            "green"
+        Color4 ->
+            "Blue"
 
-        Blue ->
-            "blue"
+        Color5 ->
+            "Green"
 
-        Purple ->
-            "purple"
+        Color6 ->
+            "Purple"
 
-        White ->
-            "white"
+        None ->
+            "White"
 
 
 random : Random.Generator Color
 random =
-    Random.uniform Red [ Orange, Yellow, Green, Blue, Purple ]
+    Random.uniform Color1 [ Color2, Color3, Color4, Color5, Color6 ]
