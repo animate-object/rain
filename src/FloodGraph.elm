@@ -8,6 +8,17 @@ import Set exposing (..)
 
 
 
+{-
+   A flood graph is the data structure backing the game functionality
+   of rain. I think of it as an undirected acyclic graph, where each vertex is
+   a triangle in the board and each edge represents adjacency with another triangle.
+
+   Flood graph is implemented as a typed wrapper around drathier/elm-graph, a simple
+   graph lib with a clean API. FloodGraph contains typed nodes, methods for generating
+   the triangle adjacency graphs, and code for the traversals and queries that support
+   the game.
+
+-}
 -------------------------------------------------------------------------------
 -- Graph
 -------------------------------------------------------------------------------

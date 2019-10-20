@@ -1,4 +1,4 @@
-module Triangle exposing (Triangle, altitude, draw, sizedTriangleGrid)
+module Triangle exposing (Triangle, draw, sizedTriangleGrid)
 
 import Html as Html exposing (..)
 import List exposing (..)
@@ -12,16 +12,6 @@ type alias Triangle =
     , b : Point.Point
     , c : Point.Point
     }
-
-
-altitudeFromS : Float -> Float
-altitudeFromS s =
-    s * (sqrt 3 / 2)
-
-
-altitude : Triangle -> Float
-altitude eq =
-    altitudeFromS (Point.distance eq.a eq.b)
 
 
 points : Triangle -> List Point.Point
