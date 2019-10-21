@@ -27,14 +27,15 @@ Check out the TODO list below.
 - Game options (row counts, n colors, color schemes)
 - View responds to window resize
 - Select color scheme
+- Game remembers color scheme and row preferences
 
 ## In Progress
 
-- Embedding Elm in a web app
-- Game remembers color scheme and row preferences
-
 ## On Deck
 
+With color schemes and saved preferences, this project is #Done
+
+More work may be done in the future, but for now I am giving myself permission to work on other things!
 
 ## Stretch
 
