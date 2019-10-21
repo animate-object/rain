@@ -19,6 +19,12 @@ type alias Scheme =
     }
 
 
+schemeFromString : String -> Maybe Scheme
+schemeFromString val =
+    List.filter (\scheme -> scheme.name == val) schemes
+        |> List.head
+
+
 classic =
     Scheme "Classic (blue)" rain
 

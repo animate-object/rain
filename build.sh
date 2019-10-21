@@ -7,7 +7,7 @@ build_dir="./build"
 js="$build_dir/rain.js"
 min="$build_dir/rain.min.js"
 
-rm $min
+rm -f $min
 
 elm make --optimize --output=$js $entry_point $@
 

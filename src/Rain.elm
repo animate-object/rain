@@ -1,4 +1,4 @@
-module Main exposing (main, view)
+port module Main exposing (main)
 
 import Browser
 import Browser.Dom
@@ -8,6 +8,8 @@ import FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, empty, is
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
+import Json.Decode as D
+import Json.Encode as E
 import Maybe exposing (..)
 import Point exposing (..)
 import Random exposing (..)
@@ -23,7 +25,7 @@ import Tuple exposing (..)
 
 main =
     Browser.element
-        { init = \flags -> init flags initRows (initialSeed 0) (Rect 800 800)
+        { init = \flags -> init flags (initialSeed 0) (Rect 800 800)
         , update = update
         , view = view
         , subscriptions = subscriptions
@@ -36,7 +38,7 @@ main =
 --------------------------------------------------------------------------------
 
 
-initRows =
+defaultRows =
     10
 
 
@@ -44,20 +46,50 @@ startNode =
     0
 
 
-init : () -> Int -> Seed -> Rect -> ( Model, Cmd Msg )
-init flags rows seed viewport =
+defaultColorScheme =
+    Color.bold
+
+
+init : D.Value -> Seed -> Rect -> ( Model, Cmd Msg )
+init flags seed viewport =
+    let
+        initialRows =
+            D.decodeValue (D.field "nextGameRows" D.int) flags |> Result.withDefault defaultRows
+
+        savedColorScheme =
+            D.decodeValue (D.field "colorScheme" D.string) flags |> Result.toMaybe
+
+        initialColorScheme =
+            case savedColorScheme of
+                Just val ->
+                    Color.schemeFromString val |> Maybe.withDefault defaultColorScheme
+
+                Nothing ->
+                    defaultColorScheme
+
+        initialOptions =
+            GameOptions
+                (Just initialRows)
+                initialColorScheme
+    in
     ( Model viewport
-        rows
+        initialRows
         FloodGraph.empty
         Color.EmptyColor
         (GameData 0 False)
         False
-        (GameOptions
-            (Just rows)
-            Color.bold
-        )
+        initialOptions
     , Cmd.batch [ requestNewGame, getViewport ]
     )
+
+
+
+--------------------------------------------------------------------------------
+-- Ports
+--------------------------------------------------------------------------------
+
+
+port save : E.Value -> Cmd msg
 
 
 
@@ -166,7 +198,7 @@ update msg model =
                 , gameData = Tuple.second game
                 , showOptions = False
               }
-            , Cmd.none
+            , saveGameOptions model.gameOptions
             )
 
         ViewportUpdated newViewport ->
@@ -217,7 +249,7 @@ update msg model =
             ( { model
                 | gameOptions = updatedGameOptions
               }
-            , Cmd.none
+            , saveGameOptions updatedGameOptions
             )
 
 
@@ -235,6 +267,15 @@ getViewport =
 requestNewGame : Cmd Msg
 requestNewGame =
     Task.perform (\posix -> Time.posixToMillis posix |> initialSeed |> NewGameStarted) Time.now
+
+
+saveGameOptions : GameOptions -> Cmd Msg
+saveGameOptions opts =
+    E.object
+        [ ( "nextGameRows", Maybe.withDefault E.null <| Maybe.map E.int opts.nextGameRows )
+        , ( "colorScheme", E.string opts.colorScheme.name )
+        ]
+        |> save
 
 
 
@@ -543,9 +584,8 @@ selectColorScheme : Color.Scheme -> Html Msg
 selectColorScheme selectedScheme =
     select
         [ onInput
-            (\val ->
-                List.filter (\scheme -> scheme.name == val) Color.schemes
-                    |> List.head
+            (\s ->
+                Color.schemeFromString s
                     |> Maybe.map (\scheme -> SetColorScheme scheme)
                     |> Maybe.withDefault (SetColorScheme selectedScheme)
             )
