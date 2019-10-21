@@ -1,4 +1,4 @@
-module FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, empty, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
+module FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, empty, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
 
 import Color exposing (..)
 import Graph exposing (..)
@@ -178,12 +178,12 @@ nodeColor : FloodGraph -> Int -> Color
 nodeColor graph id =
     Graph.getData id graph
         |> Maybe.map (\n -> n.color)
-        |> Maybe.withDefault None
+        |> Maybe.withDefault EmptyColor
 
 
 colorWithDefault : Maybe FloodNode -> Color
 colorWithDefault node =
-    Maybe.withDefault None (Maybe.map (\n -> n.color) node)
+    Maybe.withDefault EmptyColor (Maybe.map (\n -> n.color) node)
 
 
 isFlooded : FloodGraph -> Bool
@@ -201,37 +201,6 @@ isFlooded graph =
 
         _ ->
             False
-
-
-
--------------------------------------------------------------------------------
--- Debug
--------------------------------------------------------------------------------
-
-
-debugGraph : FloodGraph -> List (Html msg)
-debugGraph g =
-    Graph.nodes g |> List.reverse |> List.map (\n -> Html.div [] [ Html.text (nodeToString n g) ])
-
-
-nodeToString : ( Int, Maybe FloodNode ) -> FloodGraph -> String
-nodeToString node graph =
-    "Id: "
-        ++ String.fromInt (Tuple.first node)
-        ++ " || Color: "
-        ++ Maybe.withDefault "None" (Tuple.second node |> Maybe.map (\data -> Color.toString data.color))
-        ++ " || Edges: "
-        ++ (allEdges (Tuple.first node) graph |> Set.toList |> List.map (\num -> "-> " ++ String.fromInt num) |> String.join ", ")
-
-
-edgesToString : List ( Int, Int ) -> String
-edgesToString edges =
-    List.map edgeToString edges |> String.join " || "
-
-
-edgeToString : ( Int, Int ) -> String
-edgeToString edge =
-    String.fromInt (Tuple.first edge) ++ ", " ++ String.fromInt (Tuple.second edge)
 
 
 

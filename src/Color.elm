@@ -10,7 +10,33 @@ type Color
     | Color4
     | Color5
     | Color6
-    | None
+    | EmptyColor
+
+
+type alias Scheme =
+    { name : String
+    , fn : Color -> String
+    }
+
+
+classic =
+    Scheme "Classic (blue)" rain
+
+
+pastel =
+    Scheme "Pastel" light
+
+
+bold =
+    Scheme "Bold" basic
+
+
+schemes : List Scheme
+schemes =
+    [ classic
+    , bold
+    , pastel
+    ]
 
 
 all : List Color
@@ -18,9 +44,9 @@ all =
     [ Color1, Color2, Color3, Color4, Color5, Color6 ]
 
 
-toString : Color -> String
-toString color =
-    rain color
+toString : Color -> Scheme -> String
+toString color scheme =
+    scheme.fn color
 
 
 rain : Color -> String
@@ -44,7 +70,7 @@ rain color =
         Color6 ->
             "#5f6968"
 
-        None ->
+        EmptyColor ->
             "White"
 
 
@@ -69,7 +95,7 @@ light color =
         Color6 ->
             "#e268f2"
 
-        None ->
+        EmptyColor ->
             "White"
 
 
@@ -94,7 +120,7 @@ basic color =
         Color6 ->
             "Purple"
 
-        None ->
+        EmptyColor ->
             "White"
 
 

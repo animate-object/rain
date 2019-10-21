@@ -4,7 +4,7 @@ import Browser
 import Browser.Dom
 import Browser.Events
 import Color exposing (..)
-import FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, debugGraph, empty, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
+import FloodGraph exposing (FloodGraph, FloodNode, RecolorAccumulator, empty, isFlooded, nodeColor, randomNode, recolor, triangleGraph)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
@@ -24,7 +24,7 @@ import Tuple exposing (..)
 main =
     Browser.element
         { init = \flags -> init flags initRows (initialSeed 0) (Rect 800 800)
-        , update = updateAndLog
+        , update = update
         , view = view
         , subscriptions = subscriptions
         }
@@ -49,10 +49,13 @@ init flags rows seed viewport =
     ( Model viewport
         rows
         FloodGraph.empty
-        Color.None
+        Color.EmptyColor
         (GameData 0 False)
         False
-        (Just rows)
+        (GameOptions
+            (Just rows)
+            Color.bold
+        )
     , Cmd.batch [ requestNewGame, getViewport ]
     )
 
@@ -69,6 +72,12 @@ type alias GameData =
     }
 
 
+type alias GameOptions =
+    { nextGameRows : Maybe Int
+    , colorScheme : Color.Scheme
+    }
+
+
 type alias Model =
     { viewport : Rect
     , rows : Int
@@ -76,23 +85,8 @@ type alias Model =
     , color : Color
     , gameData : GameData
     , showOptions : Bool
-    , nextGameRows : Maybe Int
+    , gameOptions : GameOptions
     }
-
-
-type alias ModelWithoutGraph =
-    { viewport : Rect
-    , rows : Int
-    , color : Color
-    , gameData : GameData
-    , showOptions : Bool
-    , nextGameRows : Maybe Int
-    }
-
-
-withoutGraph : Model -> ModelWithoutGraph
-withoutGraph model =
-    ModelWithoutGraph model.viewport model.rows model.color model.gameData model.showOptions model.nextGameRows
 
 
 
@@ -109,6 +103,7 @@ type Msg
     | ViewportUpdated Rect
     | ShowOptions Bool
     | SetNextGameRows (Maybe Int)
+    | SetColorScheme Color.Scheme
 
 
 newGame : Int -> Seed -> ( FloodGraph, GameData )
@@ -121,28 +116,6 @@ newGame rows seed =
             GameData 0 False
     in
     ( graph, gameData )
-
-
-msgToString : Msg -> String
-msgToString msg =
-    Debug.toString msg
-
-
-modelToString : Model -> String
-modelToString model =
-    Debug.toString (withoutGraph model)
-
-
-updateAndLog : Msg -> Model -> ( Model, Cmd Msg )
-updateAndLog msg model =
-    let
-        new =
-            update msg model
-
-        log =
-            Debug.log (msgToString msg ++ modelToString (Tuple.first new)) "update"
-    in
-    new
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -177,7 +150,7 @@ update msg model =
                 ( updated, Cmd.none )
 
         NewGameRequested ->
-            ( { model | rows = Maybe.withDefault model.rows model.nextGameRows }, requestNewGame )
+            ( { model | rows = Maybe.withDefault model.rows model.gameOptions.nextGameRows }, requestNewGame )
 
         NewGameStarted seed ->
             let
@@ -204,13 +177,45 @@ update msg model =
 
         ShowOptions show ->
             -- reset options state on 'enter/exit'
-            ( { model | showOptions = show, nextGameRows = Just model.rows }, Cmd.none )
+            let
+                oldOptions =
+                    model.gameOptions
+
+                updatedGameOptions =
+                    { oldOptions | nextGameRows = Just model.rows }
+            in
+            ( { model | showOptions = show, gameOptions = updatedGameOptions }, Cmd.none )
 
         SetNextGameRows val ->
+            let
+                oldOptions =
+                    model.gameOptions
+
+                updatedGameOptions =
+                    { oldOptions
+                        | nextGameRows =
+                            Maybe.map (\v -> Basics.min 100 (Basics.max 0 v))
+                                val
+                    }
+            in
             ( { model
-                | nextGameRows =
-                    Maybe.map (\v -> Basics.min 100 (Basics.max 0 v))
-                        val
+                | gameOptions = updatedGameOptions
+              }
+            , Cmd.none
+            )
+
+        SetColorScheme scheme ->
+            let
+                oldOptions =
+                    model.gameOptions
+
+                updatedGameOptions =
+                    { oldOptions
+                        | colorScheme = scheme
+                    }
+            in
+            ( { model
+                | gameOptions = updatedGameOptions
               }
             , Cmd.none
             )
@@ -218,7 +223,7 @@ update msg model =
 
 
 --------------------------------------------------------------------------------
--- Commanda
+-- Commands
 --------------------------------------------------------------------------------
 
 
@@ -289,6 +294,7 @@ mobile model =
                 , SvgAttr.height (String.fromFloat trimmed.height)
                 ]
                 (triangleGameGrid
+                    model.gameOptions.colorScheme
                     model.rows
                     model.graph
                     trimmed
@@ -300,7 +306,7 @@ mobile model =
                 , style "grid-gap" "1em"
                 , style "width" "90%"
                 ]
-                (colorSelectors
+                (colorSelectors model.gameOptions.colorScheme
                     (\c -> Html.Events.onClick (ColorSelected c))
                 )
             , gamePanel model
@@ -342,6 +348,7 @@ desktop model =
                 , SvgAttr.height (String.fromFloat trimmed.height)
                 ]
                 (triangleGameGrid
+                    model.gameOptions.colorScheme
                     model.rows
                     model.graph
                     trimmed
@@ -354,7 +361,7 @@ desktop model =
                 , style "grid-gap" "2rem"
                 , style "flex-grow" "1"
                 ]
-                (colorSelectors
+                (colorSelectors model.gameOptions.colorScheme
                     (\c -> Html.Events.onClick (ColorSelected c))
                 )
             , gamePanel model
@@ -399,8 +406,8 @@ gamePanel model =
         ]
 
 
-colorSelectors : (Color -> Html.Attribute msg) -> List (Html msg)
-colorSelectors onClick =
+colorSelectors : Color.Scheme -> (Color -> Html.Attribute msg) -> List (Html msg)
+colorSelectors scheme onClick =
     Color.all
         |> List.map
             (\c ->
@@ -413,7 +420,7 @@ colorSelectors onClick =
                     , style "border" "none"
                     , style "border-radius" "2px"
                     , style "padding" "1rem"
-                    , style "background-color" (Color.toString c)
+                    , style "background-color" (Color.toString c scheme)
                     , onClick c
                     ]
                     []
@@ -472,10 +479,6 @@ gameOptionsModal model =
 
 gameOptions : Model -> Html Msg
 gameOptions model =
-    let
-        log2 =
-            Debug.log (Debug.toString model.nextGameRows) "-- gameOptions"
-    in
     div
         [ style "height" "100%"
         , style "display" "grid"
@@ -493,24 +496,16 @@ gameOptions model =
                 )
             ]
         , div
-            [ style "font-size" "3rem"
-            , style "border" "none"
-            , style "border-radius" "2px"
-            , style "padding-top" "15%"
-            , style "height" "80%"
-            , style "width" "100%"
+            [ style "display" "grid"
+            , style "grid-template-columns" "auto auto"
+            , style "justify-content" "start"
+            , style "font-size" "2rem"
+            , style "grid-gap" "0.5rem"
             ]
-            [ Html.span [ style "font-size" "3rem" ]
-                [ Html.text ("Number of rows " ++ (Maybe.map String.fromInt model.nextGameRows |> withDefault "")) ]
-            , div []
-                [ input
-                    [ type_ "number"
-                    , style "font-size" "3rem"
-                    , value (Maybe.map String.fromInt model.nextGameRows |> withDefault "")
-                    , onInput (\s -> SetNextGameRows (String.toInt s))
-                    ]
-                    []
-                ]
+            [ label [] [ text "Set Color Scheme" ]
+            , selectColorScheme model.gameOptions.colorScheme
+            , label [] [ text "Set #Rows (requires new game)" ]
+            , setNextGameRows model.gameOptions.nextGameRows
             ]
         , button
             [ onClick NewGameRequested
@@ -533,6 +528,42 @@ gameOptions model =
         ]
 
 
+setNextGameRows : Maybe Int -> Html Msg
+setNextGameRows nextGameRows =
+    input
+        [ type_ "number"
+        , style "font-size" "2rem"
+        , style "width" "5rem"
+        , value (Maybe.map String.fromInt nextGameRows |> withDefault "")
+        , onInput (\s -> SetNextGameRows (String.toInt s))
+        ]
+        []
+
+
+selectColorScheme : Color.Scheme -> Html Msg
+selectColorScheme selectedScheme =
+    select
+        [ onInput
+            (\val ->
+                List.filter (\scheme -> scheme.name == val) Color.schemes
+                    |> List.head
+                    |> Maybe.map (\scheme -> SetColorScheme scheme)
+                    |> Maybe.withDefault (SetColorScheme selectedScheme)
+            )
+        , style "font-size" "2rem"
+        ]
+        (Color.schemes
+            |> List.map
+                (\scheme ->
+                    option
+                        [ value scheme.name
+                        , selected (scheme.name == selectedScheme.name)
+                        ]
+                        [ text scheme.name ]
+                )
+        )
+
+
 
 {------------------------------------------------------------------------------
 -- This section contains a couple of functions that marry the graph in state
@@ -542,13 +573,13 @@ gameOptions model =
 --}
 
 
-triangleGameGrid : Int -> FloodGraph -> Rect -> List (Svg.Svg msg)
-triangleGameGrid rowCount graph viewport =
+triangleGameGrid : Color.Scheme -> Int -> FloodGraph -> Rect -> List (Svg.Svg msg)
+triangleGameGrid scheme rowCount graph viewport =
     sizedTriangleGrid
         rowCount
         viewport.width
         |> List.concat
-        |> List.indexedMap (coloredTriangle (nodeColorFromId graph))
+        |> List.indexedMap (coloredTriangle (nodeColorFromId scheme graph))
 
 
 coloredTriangle : (Int -> List (Svg.Attribute msg)) -> Int -> Triangle -> Svg.Svg msg
@@ -556,7 +587,7 @@ coloredTriangle getColorAttr nodeId tri =
     Triangle.draw tri (getColorAttr nodeId) []
 
 
-nodeColorFromId : FloodGraph -> Int -> List (Svg.Attribute msg)
-nodeColorFromId graph id =
+nodeColorFromId : Color.Scheme -> FloodGraph -> Int -> List (Svg.Attribute msg)
+nodeColorFromId scheme graph id =
     nodeColor graph id
-        |> (\color -> [ SvgAttr.fill (Color.toString color) ])
+        |> (\color -> [ SvgAttr.fill (Color.toString color scheme) ])
