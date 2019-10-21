@@ -352,7 +352,7 @@ mobile model =
                 )
             , gamePanel model
             ]
-        , gameOptionsModal model
+        , gameOptionsModal model True
         ]
 
 
@@ -407,7 +407,7 @@ desktop model =
                 )
             , gamePanel model
             ]
-        , gameOptionsModal model
+        , gameOptionsModal model False
         ]
 
 
@@ -493,11 +493,11 @@ mobileModalAttrs =
     ]
 
 
-modal : Bool -> Rect -> List (Html.Attribute Msg) -> List (Html Msg) -> Html Msg
-modal isVisible viewport attrs children =
+modal : Bool -> Bool -> Rect -> List (Html.Attribute Msg) -> List (Html Msg) -> Html Msg
+modal isVisible isMobile viewport attrs children =
     let
         modalAttrs =
-            if viewport.width < 982 then
+            if isMobile then
                 mobileModalAttrs
 
             else
@@ -510,9 +510,10 @@ modal isVisible viewport attrs children =
         div [] []
 
 
-gameOptionsModal : Model -> Html Msg
-gameOptionsModal model =
+gameOptionsModal : Model -> Bool -> Html Msg
+gameOptionsModal model isMobile =
     modal model.showOptions
+        isMobile
         model.viewport
         []
         [ gameOptions model ]
