@@ -26,18 +26,18 @@ Check out the TODO list below.
 - New game button
 - Game options (row counts, n colors, color schemes)
 - View responds to window resize
+- Select color scheme
 
 ## In Progress
 
-- Sleep
+- Embedding Elm in a web app
+- Game remembers color scheme and row preferences
 
 ## On Deck
 
-- Embedding Elm in a web app
 
 ## Stretch
 
-- Selec color scheme
 - When you hover a node, all adjacent nodes of the same color get highlighted
 - Square Grids, Hexagonal Grids
 - Train a solver (every project needs AI)
