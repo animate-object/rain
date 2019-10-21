@@ -385,7 +385,7 @@ gamePanel model =
         , style "font-size" "3rem"
         , style "flex-grow" "1"
         , style "place-items" "center"
-        , style "grid-template-columns" "1fr 1fr"
+        , style "grid-template-columns" "0.5fr 0.5fr"
         , style "grid-gap" "1.5rem"
         ]
         [ Html.text
@@ -497,9 +497,9 @@ gameOptions model =
             ]
         , div
             [ style "display" "grid"
-            , style "grid-template-columns" "auto auto"
+            , style "grid-template-columns" "1fr 1fr"
             , style "justify-content" "start"
-            , style "font-size" "2rem"
+            , style "font-size" "3rem"
             , style "grid-gap" "0.5rem"
             ]
             [ label [] [ text "Set Color Scheme" ]
@@ -532,8 +532,7 @@ setNextGameRows : Maybe Int -> Html Msg
 setNextGameRows nextGameRows =
     input
         [ type_ "number"
-        , style "font-size" "2rem"
-        , style "width" "5rem"
+        , style "font-size" "3rem"
         , value (Maybe.map String.fromInt nextGameRows |> withDefault "")
         , onInput (\s -> SetNextGameRows (String.toInt s))
         ]
@@ -550,13 +549,14 @@ selectColorScheme selectedScheme =
                     |> Maybe.map (\scheme -> SetColorScheme scheme)
                     |> Maybe.withDefault (SetColorScheme selectedScheme)
             )
-        , style "font-size" "2rem"
+        , style "font-size" "3rem"
         ]
         (Color.schemes
             |> List.map
                 (\scheme ->
                     option
                         [ value scheme.name
+                        , style "font-size" "2rem"
                         , selected (scheme.name == selectedScheme.name)
                         ]
                         [ text scheme.name ]
