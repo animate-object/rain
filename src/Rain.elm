@@ -1,4 +1,4 @@
-port module Main exposing (main)
+port module Rain exposing (main)
 
 import Browser
 import Browser.Dom
@@ -327,7 +327,7 @@ mobile model =
             , style "grid-template-rows" " 1em auto 1fr 1fr"
             , style "justify-items" "center"
             , style "grid-gap" "2em"
-            , style "height" "100vh"
+            , style "height" "90vh"
             ]
             [ div [] []
             , svg
@@ -366,12 +366,7 @@ desktop model =
             Rect.trim constrained
     in
     div
-        [ style "position" "absolute"
-        , style "left" "0"
-        , style "right" "0"
-        , style "bottom" "0"
-        , style "top" "0"
-        , style "display" "flex"
+        [ style "display" "flex"
         , style "justify-content" "center"
         , style "overflow" "none"
         , style "overflow" "none"
@@ -423,7 +418,7 @@ gamePanel model =
     div
         [ style "display" "grid"
         , style "width" "100%"
-        , style "font-size" "3rem"
+        , style "font-size" "2rem"
         , style "flex-grow" "1"
         , style "place-items" "center"
         , style "grid-template-columns" "0.5fr 0.5fr"
@@ -438,7 +433,7 @@ gamePanel model =
             )
         , button
             [ onClick (ShowOptions (not model.showOptions))
-            , style "font-size" "3rem"
+            , style "font-size" "2rem"
             , style "border" "none"
             , style "border-radius" "2px"
             , style "height" "50%"
@@ -472,9 +467,8 @@ desktopModalAttrs : List (Html.Attribute Msg)
 desktopModalAttrs =
     [ style "position" "absolute"
     , style "z-index" "100"
-    , style "top" "1%"
-    , style "height" "98%"
-    , style "width" "80%"
+    , style "top" "10%"
+    , style "width" "60%"
     , style "border-radius" "6px"
     , style "background-color" "#efefef"
     ]
@@ -483,10 +477,9 @@ desktopModalAttrs =
 mobileModalAttrs : List (Html.Attribute Msg)
 mobileModalAttrs =
     [ style "position" "absolute"
-    , style "top" "1%"
+    , style "top" "10%"
     , style "left" "1%"
     , style "z-index" "100"
-    , style "height" "98%"
     , style "width" "98%"
     , style "border-radius" "6px"
     , style "background-color" "#efefef"
@@ -522,15 +515,10 @@ gameOptionsModal model isMobile =
 gameOptions : Model -> Html Msg
 gameOptions model =
     div
-        [ style "height" "100%"
-        , style "display" "grid"
-        , style "grid-gap" "1em"
-        , style "grid-template-rows" "1fr auto 1fr 1fr 1fr"
-        , style "justify-items" "center"
-        , style "padding" "1rem"
+        [ style "padding" "1rem"
         ]
         [ Html.h1 [] [ Html.text "Rain" ]
-        , Html.p [ style "font-size" "3rem" ]
+        , Html.p [ style "font-size" "2rem" ]
             [ Html.text
                 ("Rain is a triangular take on a 'color the grid game'."
                     ++ " Change the color of the top node to expand your selection."
@@ -538,33 +526,30 @@ gameOptions model =
                 )
             ]
         , div
-            [ style "display" "grid"
-            , style "grid-template-columns" "1fr 1fr"
-            , style "justify-content" "start"
-            , style "font-size" "3rem"
-            , style "grid-gap" "0.5rem"
+            [ style "font-size" "2rem" ]
+            [ div []
+                [ label [] [ text "Set Color Scheme" ]
+                , selectColorScheme model.gameOptions.colorScheme
+                ]
+            , br [] []
+            , div []
+                [ label [] [ text "Set #Rows (requires new game)" ]
+                , setNextGameRows model.gameOptions.nextGameRows
+                ]
             ]
-            [ label [] [ text "Set Color Scheme" ]
-            , selectColorScheme model.gameOptions.colorScheme
-            , label [] [ text "Set #Rows (requires new game)" ]
-            , setNextGameRows model.gameOptions.nextGameRows
-            ]
+        , br [] []
+        , hr [] []
         , button
             [ onClick NewGameRequested
-            , style "font-size" "3rem"
-            , style "border" "none"
+            , style "font-size" "2rem"
             , style "border-radius" "2px"
-            , style "height" "80%"
-            , style "width" "100%"
+            , style "margin-right" "1rem"
             ]
             [ Html.text "New Game" ]
         , button
             [ onClick (ShowOptions False)
-            , style "font-size" "3rem"
-            , style "border" "none"
+            , style "font-size" "2rem"
             , style "border-radius" "2px"
-            , style "height" "80%"
-            , style "width" "100%"
             ]
             [ Html.text "Exit" ]
         ]
@@ -574,7 +559,7 @@ setNextGameRows : Maybe Int -> Html Msg
 setNextGameRows nextGameRows =
     input
         [ type_ "number"
-        , style "font-size" "3rem"
+        , style "font-size" "2rem"
         , value (Maybe.map String.fromInt nextGameRows |> withDefault "")
         , onInput (\s -> SetNextGameRows (String.toInt s))
         ]
@@ -590,7 +575,7 @@ selectColorScheme selectedScheme =
                     |> Maybe.map (\scheme -> SetColorScheme scheme)
                     |> Maybe.withDefault (SetColorScheme selectedScheme)
             )
-        , style "font-size" "3rem"
+        , style "font-size" "2rem"
         ]
         (Color.schemes
             |> List.map
